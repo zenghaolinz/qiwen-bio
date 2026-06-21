@@ -11,6 +11,12 @@ from qiwen_bio.stringdb import build_evidence_graph
 from tests.test_string_graph import ENRICHMENT_RECORDS, NETWORK_RECORDS
 from qiwen_bio.pubmed import PubMedClient
 from tests.test_pubmed import SUMMARY_PAYLOAD
+from tests.test_synthesis import (
+    StubAlphaFoldClient as SynthesisAlphaFoldClient,
+    StubPubMedClient as SynthesisPubMedClient,
+    StubStringClient as SynthesisStringClient,
+    StubUniProtClient as SynthesisUniProtClient,
+)
 
 
 client = TestClient(app)
@@ -144,3 +150,25 @@ def test_pubmed_endpoint_returns_articles_and_report_section() -> None:
     assert len(payload["evidence"]["articles"]) == 2
     assert "[PMID 12345]" in payload["markdown_section"]
     assert "does not by itself validate" in payload["evidence"]["disclaimer"]
+
+
+def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None:
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    try:
+        response = client.post(
+            "/api/v1/report/comprehensive",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "R2H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["coverage"]["score"] == 100
+    assert payload["annotation"]["accession"] == "P04637"
+    assert payload["structure"]["mutation_site"]["position"] == 2
+    assert payload["literature"]["articles"][0]["pmid"] == "12345"
+    assert payload["report_markdown"].startswith("# Qiwen Bio comprehensive report")

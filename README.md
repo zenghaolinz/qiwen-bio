@@ -22,6 +22,8 @@
 - 使用确定性双环 Canvas 展示蛋白、过程、通路和两类证据边
 - 通过 NCBI E-utilities 检索与蛋白和图谱 term 相关的 PubMed 记录
 - 提取 PMID、题名、作者、期刊、日期和 DOI，并生成可追踪 Markdown 引用
+- 一次请求整合 UniProt、AlphaFold、STRING、PubMed 与序列分析结果
+- 输出六层证据完整度评分、缺失层警告和服务端统一 Markdown 报告
 
 > 当前 AMP 预测器是未训练的透明启发式基线，只用于验证系统流程，不可用于科研、临床或实验决策。
 
@@ -90,9 +92,17 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/literature/pubm
   -Body '{"protein":"TP53","context_terms":["Cell cycle","p53 signaling pathway"],"limit":5}'
 ```
 
+生成统一综合报告：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/report/comprehensive `
+  -ContentType 'application/json' `
+  -Body '{"identifier":"TP53","organism_id":9606,"mutation":"R175H"}'
+```
+
 ## 后续路线
 
-当前主线是阶段 3C：把结构、STRING 图谱和 PubMed 文献整合为一份服务端报告，并增加基于证据完整度的规则评分。
+当前主线回到阶段 1C：接入版本化 ESM embedding、缓存和经过同源去重验证的真实分类器，逐步替换演示启发式。
 
 模型路线仍需完成：
 
@@ -108,3 +118,5 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/literature/pubm
 当前通路节点来自 STRING enrichment 返回的 KEGG、Reactome 和 WikiPathways 类别，并不是对这些数据库的直接 API 接入。互作分数和富集 FDR 是数据库证据，不代表因果关系或表型结论。
 
 PubMed 模块只提供上下文检索和书目元数据。检索命中不等于文献支持某个生物结论；使用前仍需阅读摘要或全文并评估研究设计与证据质量。
+
+综合报告的 100 分是证据覆盖度：序列 15、UniProt 注释 20、结构 20、互作 15、过程/通路 15、文献 15。它不表示结论正确率、致病概率、模型置信度或实验成功率。可选数据库失败时报告仍会返回，并明确列出缺失层。

@@ -17,6 +17,7 @@ from qiwen_bio.models import (
     AlphaFoldAnalysisRequest,
     AnalysisRequest,
     AnalysisResponse,
+    ComprehensiveReportRequest,
     EvidenceItem,
     PubMedSearchRequest,
     StringGraphRequest,
@@ -31,6 +32,7 @@ from qiwen_bio.stringdb import (
     StringNotFoundError,
     StringServiceError,
 )
+from qiwen_bio.synthesis import ComprehensiveAnalysis, build_comprehensive_analysis
 from qiwen_bio.uniprot import (
     AmbiguousProteinError,
     ProteinNotFoundError,
@@ -196,3 +198,33 @@ def search_pubmed(
         evidence=evidence,
         markdown_section=render_literature_section(evidence),
     )
+
+
+@app.post("/api/v1/report/comprehensive", response_model=ComprehensiveAnalysis)
+def comprehensive_report(
+    request: ComprehensiveReportRequest,
+    uniprot: UniProtClient = Depends(get_uniprot_client),
+    alphafold: AlphaFoldClient = Depends(get_alphafold_client),
+    string: StringClient = Depends(get_string_client),
+    pubmed: PubMedClient = Depends(get_pubmed_client),
+) -> ComprehensiveAnalysis:
+    try:
+        return build_comprehensive_analysis(
+            identifier=request.identifier,
+            organism_id=request.organism_id,
+            mutation=request.mutation,
+            pipeline=pipeline,
+            uniprot_client=uniprot,
+            alphafold_client=alphafold,
+            string_client=string,
+            pubmed_client=pubmed,
+            string_limit=request.interaction_limit,
+            required_score=request.required_score,
+            literature_limit=request.literature_limit,
+        )
+    except ProteinNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AmbiguousProteinError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UniProtServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

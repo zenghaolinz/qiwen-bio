@@ -20,7 +20,7 @@ form.addEventListener("submit", async (event) => {
 lookupButton.addEventListener("click", async () => {
   const identifier = document.querySelector("#identifier").value.trim();
   if (!identifier) return showError("请输入基因名或 UniProt ID");
-  await requestAnalysis("/api/v1/analyze/uniprot", {
+  await requestAnalysis("/api/v1/report/comprehensive", {
     identifier,
     organism_id: 9606,
     mutation: document.querySelector("#mutation").value || null,
@@ -42,6 +42,11 @@ async function requestAnalysis(url, payload) {
     if (!response.ok) throw new Error(data.detail?.[0]?.msg || "分析请求失败");
     const analysis = data.analysis || data;
     renderAnnotation(data.annotation || null);
+    if (data.annotation) {
+      document.querySelector("#name").value = data.annotation.protein_name;
+      sequenceInput.value = data.annotation.sequence;
+      lengthLabel.textContent = `${data.annotation.sequence.length} aa`;
+    }
     document.querySelector("#metric-length").textContent = analysis.features.length;
     document.querySelector("#metric-weight").textContent = analysis.features.molecular_weight_da.toLocaleString();
     document.querySelector("#metric-hydrophobic").textContent = `${(analysis.features.hydrophobic_fraction * 100).toFixed(1)}%`;
@@ -51,14 +56,31 @@ async function requestAnalysis(url, payload) {
     document.querySelector("#evidence-list").innerHTML = analysis.evidence_chain.map(item =>
       `<li><p>${escapeHtml(item.claim)}</p><small>${escapeHtml(item.source)} · ${item.confidence} confidence</small></li>`
     ).join("");
-    document.querySelector("#report").textContent = analysis.report_markdown;
+    document.querySelector("#report").textContent = data.report_markdown || analysis.report_markdown;
     results.classList.remove("hidden");
-    if (data.annotation) {
+    if (data.coverage) {
+      renderCoverage(data.coverage, data.warnings || []);
+      if (data.structure) {
+        document.querySelector("#structure").classList.remove("hidden");
+        displayStructure(data.structure, "pLDDT and CA proximity describe model confidence and geometry, not pathogenicity or functional effect.");
+      } else document.querySelector("#structure").classList.add("hidden");
+      let terms = [];
+      if (data.graph) {
+        document.querySelector("#evidence-graph").classList.remove("hidden");
+        terms = displayEvidenceGraph(data.annotation.gene_names[0] || data.annotation.accession, data.graph);
+      } else document.querySelector("#evidence-graph").classList.add("hidden");
+      if (data.literature) {
+        document.querySelector("#literature").classList.remove("hidden");
+        displayLiterature(data.annotation.gene_names[0] || data.annotation.accession, data.literature);
+      } else document.querySelector("#literature").classList.add("hidden");
+    } else if (data.annotation) {
+      document.querySelector("#coverage").classList.add("hidden");
       const enrichments = [renderEvidenceGraph(data.annotation.gene_names[0] || data.annotation.accession)];
       if (data.annotation.alphafold_url) enrichments.push(renderStructure(data.annotation.accession, payload.mutation));
       else document.querySelector("#structure").classList.add("hidden");
       await Promise.all(enrichments);
     } else {
+      document.querySelector("#coverage").classList.add("hidden");
       document.querySelector("#structure").classList.add("hidden");
       document.querySelector("#evidence-graph").classList.add("hidden");
       document.querySelector("#literature").classList.add("hidden");
@@ -66,6 +88,19 @@ async function requestAnalysis(url, payload) {
   } catch (err) {
     error.textContent = err.message; error.classList.remove("hidden");
   } finally { loading.classList.add("hidden"); }
+}
+
+function renderCoverage(coverage, warnings) {
+  const panel = document.querySelector("#coverage"); panel.classList.remove("hidden");
+  document.querySelector("#coverage-value").textContent = `${coverage.score}/${coverage.max_score}`;
+  document.querySelector("#coverage-label").textContent = coverage.label;
+  document.querySelector("#coverage-components").innerHTML = coverage.components.map(item =>
+    `<div class="coverage-component ${item.available ? "available" : ""}" title="${escapeHtml(item.detail)}"><b>${escapeHtml(item.name)}</b><span>${item.points}/${item.max_points}</span></div>`
+  ).join("");
+  document.querySelector("#coverage-note").textContent = coverage.interpretation;
+  const list = document.querySelector("#coverage-warnings");
+  list.classList.toggle("hidden", !warnings.length);
+  list.innerHTML = warnings.map(item => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
 async function renderStructure(accession, mutation) {
@@ -79,27 +114,30 @@ async function renderStructure(accession, mutation) {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Structure analysis failed");
-    const structure = data.structure;
-    document.querySelector("#structure-plddt").textContent = structure.mean_plddt.toFixed(2);
-    const distribution = structure.confidence_distribution;
-    document.querySelector("#confidence-bar").innerHTML = ["very_high", "confident", "low", "very_low"]
-      .map(key => `<span class="${key.replace("_", "-")}" style="width:${distribution[key] * 100}%"></span>`)
-      .join("");
-    const mutationLine = document.querySelector("#mutation-confidence");
-    mutationLine.classList.toggle("hidden", !structure.mutation_site);
-    if (structure.mutation_site) {
-      const site = structure.mutation_site;
-      mutationLine.textContent = `${site.wild_type}${site.position}${site.mutant}: pLDDT ${site.plddt.toFixed(1)} (${site.confidence})`;
-    }
-    document.querySelector("#structure-note").textContent = data.interpretation;
-    renderBackbone(structure.coordinates, structure.mutation_site?.position || null);
-    renderContactMap(structure.coordinates, structure.contact_map);
-    renderNeighborhood(structure.mutation_neighborhood);
+    displayStructure(data.structure, data.interpretation);
   } catch (err) {
     document.querySelector("#structure-plddt").textContent = "Unavailable";
     document.querySelector("#confidence-bar").innerHTML = "";
     document.querySelector("#structure-note").textContent = err.message;
   }
+}
+
+function displayStructure(structure, interpretation) {
+  document.querySelector("#structure-plddt").textContent = structure.mean_plddt.toFixed(2);
+  const distribution = structure.confidence_distribution;
+  document.querySelector("#confidence-bar").innerHTML = ["very_high", "confident", "low", "very_low"]
+    .map(key => `<span class="${key.replace("_", "-")}" style="width:${distribution[key] * 100}%"></span>`)
+    .join("");
+  const mutationLine = document.querySelector("#mutation-confidence");
+  mutationLine.classList.toggle("hidden", !structure.mutation_site);
+  if (structure.mutation_site) {
+    const site = structure.mutation_site;
+    mutationLine.textContent = `${site.wild_type}${site.position}${site.mutant}: pLDDT ${site.plddt.toFixed(1)} (${site.confidence})`;
+  }
+  document.querySelector("#structure-note").textContent = interpretation;
+  renderBackbone(structure.coordinates, structure.mutation_site?.position || null);
+  renderContactMap(structure.coordinates, structure.contact_map);
+  renderNeighborhood(structure.mutation_neighborhood);
 }
 
 const viewerState = { coordinates: [], mutationPosition: null, angleX: -0.25, angleY: 0.45 };
@@ -183,19 +221,25 @@ async function renderEvidenceGraph(identifier) {
     });
     const graph = await response.json();
     if (!response.ok) throw new Error(typeof graph.detail === "string" ? graph.detail : "STRING graph failed");
-    const interactions = graph.edges.filter(edge => edge.type === "interacts_with").length;
-    const terms = graph.nodes.filter(node => node.type !== "protein");
-    document.querySelector("#graph-summary").textContent = `${graph.nodes.length} nodes · ${interactions} interactions · ${terms.length} terms`;
-    drawEvidenceGraph(graph);
-    document.querySelector("#graph-terms").innerHTML = terms.slice(0, 6).map(node =>
-      `<div class="graph-term"><b>${escapeHtml(node.external_id)}</b>${escapeHtml(node.label)} · FDR ${formatScientific(node.fdr)}</div>`
-    ).join("");
+    const terms = displayEvidenceGraph(identifier, graph);
     await renderLiterature(identifier, terms.slice(0, 3).map(node => node.label));
   } catch (err) {
     document.querySelector("#graph-summary").textContent = "Unavailable";
     document.querySelector("#graph-terms").innerHTML = `<div class="graph-term">${escapeHtml(err.message)}</div>`;
     prepareCanvas(document.querySelector("#graph-canvas"));
   }
+}
+
+function displayEvidenceGraph(identifier, graph) {
+  document.querySelector("#graph-title").textContent = identifier;
+  const interactions = graph.edges.filter(edge => edge.type === "interacts_with").length;
+  const terms = graph.nodes.filter(node => node.type !== "protein");
+  document.querySelector("#graph-summary").textContent = `${graph.nodes.length} nodes · ${interactions} interactions · ${terms.length} terms`;
+  drawEvidenceGraph(graph);
+  document.querySelector("#graph-terms").innerHTML = terms.slice(0, 6).map(node =>
+    `<div class="graph-term"><b>${escapeHtml(node.external_id)}</b>${escapeHtml(node.label)} · FDR ${formatScientific(node.fdr)}</div>`
+  ).join("");
+  return terms;
 }
 
 async function renderLiterature(protein, contextTerms) {
@@ -211,17 +255,7 @@ async function renderLiterature(protein, contextTerms) {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "PubMed search failed");
-    const evidence = data.evidence;
-    document.querySelector("#literature-count").textContent = `${evidence.articles.length} records`;
-    document.querySelector("#literature-query").textContent = evidence.query;
-    document.querySelector("#article-list").innerHTML = evidence.articles.length
-      ? evidence.articles.map(article => `
-          <li>
-            <a href="${article.url}" target="_blank" rel="noreferrer">${escapeHtml(article.title)}</a>
-            <p>${escapeHtml(article.authors.slice(0, 3).join(", ") || "Unknown authors")} · ${escapeHtml(article.journal)} · ${escapeHtml(article.published)} · PMID ${article.pmid}</p>
-          </li>`).join("")
-      : "<li>No records matched this query.</li>";
-    document.querySelector("#literature-note").textContent = evidence.disclaimer;
+    displayLiterature(protein, data.evidence);
     const report = document.querySelector("#report");
     report.textContent = `${report.textContent.trim()}\n\n${data.markdown_section.trim()}\n`;
   } catch (err) {
@@ -229,6 +263,20 @@ async function renderLiterature(protein, contextTerms) {
     document.querySelector("#article-list").innerHTML = `<li>${escapeHtml(err.message)}</li>`;
     document.querySelector("#literature-note").textContent = "Other analysis results remain available.";
   }
+}
+
+function displayLiterature(protein, evidence) {
+  document.querySelector("#literature-title").textContent = protein;
+  document.querySelector("#literature-count").textContent = `${evidence.articles.length} records`;
+  document.querySelector("#literature-query").textContent = evidence.query;
+  document.querySelector("#article-list").innerHTML = evidence.articles.length
+    ? evidence.articles.map(article => `
+        <li>
+          <a href="${article.url}" target="_blank" rel="noreferrer">${escapeHtml(article.title)}</a>
+          <p>${escapeHtml(article.authors.slice(0, 3).join(", ") || "Unknown authors")} · ${escapeHtml(article.journal)} · ${escapeHtml(article.published)} · PMID ${article.pmid}</p>
+        </li>`).join("")
+    : "<li>No records matched this query.</li>";
+  document.querySelector("#literature-note").textContent = evidence.disclaimer;
 }
 
 function drawEvidenceGraph(graph) {

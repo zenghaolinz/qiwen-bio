@@ -24,6 +24,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/alphafold.py`: AlphaFold metadata/PDB retrieval and pLDDT analysis.
 - `qiwen_bio/stringdb.py`: STRING network/enrichment retrieval and typed evidence-graph normalization.
 - `qiwen_bio/pubmed.py`: NCBI E-utilities retrieval and auditable PubMed metadata parsing.
+- `qiwen_bio/synthesis.py`: optional-layer orchestration, graceful degradation, and evidence coverage scoring.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -33,13 +34,14 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | --- | --- | --- | --- |
 | 1A Engineering MVP | Complete | Sequence validation, deterministic features, API, Web Demo, evidence chain, Markdown report | ESM embeddings and trained classifier |
 | 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
+| 1C Model foundation | Planned | ESM embeddings, cache, curated training data, homology-aware classifier evaluation | Not started |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
 | 3B Literature retrieval | Complete | Context-bound PubMed search, structured citations, PMID links, Markdown report section | Abstract/full-text appraisal, claim-level support classification |
-| 3C Evidence synthesis | Planned | Unified structure/graph/literature report and calibrated evidence scoring | Not started |
+| 3C Evidence synthesis | Complete | One server-generated report, six-layer coverage score, optional-service degradation, unified Web result | Claim correctness scoring, phenotype prediction |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 3C: combine structure, STRING, and PubMed outputs into one server-generated report, add rule-based evidence completeness scores, and keep retrieval matches separate from claim-level support.
+Implement stage 1C: add a versioned embedding-provider interface and local cache, integrate a feasible ESM-2 model, then prepare a curated AMP dataset with homology-aware train/validation/test splits before replacing the demo heuristic.

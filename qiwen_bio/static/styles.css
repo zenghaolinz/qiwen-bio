@@ -41,6 +41,8 @@ button:hover { background: #124c3a; }
 button span { color: var(--acid); margin-left: 12px; }
 .notice { border-left: 3px solid #d7b928; padding-left: 11px; color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 22px; }
 .result-panel { min-height: 480px; }
+.coverage-card { margin-top: 22px; padding: 18px; color: white; background: #1d604b; }.coverage-score { display: flex; justify-content: space-between; align-items: end; }.coverage-score strong { display: block; margin-top: 4px; color: var(--acid); font: 38px Constantia, Georgia, serif; }.coverage-score > span { text-transform: uppercase; font: 11px Bahnschrift, sans-serif; letter-spacing: .12em; }
+.coverage-components { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-top: 16px; }.coverage-component { min-width: 0; padding-top: 8px; border-top: 5px solid rgba(255,255,255,.18); }.coverage-component.available { border-color: var(--acid); }.coverage-component b { display: block; overflow: hidden; text-overflow: ellipsis; color: white; font-size: 10px; text-transform: capitalize; }.coverage-component span { color: #bed0c8; font-size: 9px; }.coverage-card > p { color: #d6e2dc; font-size: 11px; line-height: 1.5; margin-bottom: 0; }.coverage-warnings { margin: 12px 0 0; padding: 10px 10px 10px 26px; background: rgba(0,0,0,.16); color: #f5e3a5; font-size: 11px; line-height: 1.5; }
 .annotation { margin-top: 22px; padding: 18px; border: 1px solid var(--line); background: #eef2e9; }
 .annotation strong { display: block; margin-top: 5px; font: 24px Constantia, Georgia, serif; }
 .annotation dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -87,3 +89,4 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #e9e8df; paddi
 @media (max-width: 480px) { .lookup-row { grid-template-columns: 1fr; }.lookup-row input { border-right: 1px solid var(--line); border-bottom: 0; }.annotation dl { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .viewer-grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .graph-terms { grid-template-columns: 1fr; } #graph-canvas { height: 360px; } }
+@media (max-width: 620px) { .coverage-components { grid-template-columns: repeat(3, 1fr); } }

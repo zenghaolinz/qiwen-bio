@@ -48,6 +48,15 @@
         <div id="loading" class="hidden">正在计算序列特征…</div>
         <div id="error" class="error hidden"></div>
         <div id="results" class="hidden">
+          <div id="coverage" class="coverage-card hidden">
+            <div class="coverage-score">
+              <div><small>Evidence coverage</small><strong id="coverage-value"></strong></div>
+              <span id="coverage-label"></span>
+            </div>
+            <div id="coverage-components" class="coverage-components"></div>
+            <p id="coverage-note"></p>
+            <ul id="coverage-warnings" class="coverage-warnings hidden"></ul>
+          </div>
           <div id="annotation" class="annotation hidden">
             <div><small>UniProt annotation</small><strong id="annotation-name"></strong></div>
             <dl>
