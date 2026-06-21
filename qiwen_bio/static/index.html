@@ -59,6 +59,19 @@
             <a id="annotation-source" target="_blank" rel="noreferrer">查看 UniProt 来源 ↗</a>
             <a id="annotation-alphafold" class="hidden" target="_blank" rel="noreferrer">查看 AlphaFold 结构 ↗</a>
           </div>
+          <div id="structure" class="structure-card hidden">
+            <div class="structure-heading">
+              <div><small>AlphaFold confidence</small><strong id="structure-plddt"></strong></div>
+              <span>mean pLDDT</span>
+            </div>
+            <div id="confidence-bar" class="confidence-bar" aria-label="pLDDT confidence distribution"></div>
+            <div class="confidence-legend">
+              <span><i class="very-high"></i>Very high</span><span><i class="confident"></i>Confident</span>
+              <span><i class="low"></i>Low</span><span><i class="very-low"></i>Very low</span>
+            </div>
+            <p id="mutation-confidence" class="hidden"></p>
+            <p id="structure-note"></p>
+          </div>
           <div class="metrics">
             <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>
             <article><small>分子量</small><strong id="metric-weight"></strong><span>Daltons</span></article>

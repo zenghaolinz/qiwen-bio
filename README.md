@@ -13,6 +13,8 @@
 - 提供 FastAPI、OpenAPI 文档和响应式 Web Demo
 - 按 UniProt accession 或人类基因名查询 reviewed UniProt 记录
 - 展示功能注释、GO 条目数量及可用的 AlphaFold DB 入口
+- 动态获取最新 AlphaFold PDB，统计整体及分档 pLDDT
+- 对 `R175H` 形式的突变进行残基一致性校验和位点置信度分析
 
 > 当前 AMP 预测器是未训练的透明启发式基线，只用于验证系统流程，不可用于科研、临床或实验决策。
 
@@ -49,6 +51,14 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/analyze/uniprot
   -Body '{"identifier":"TP53","organism_id":9606,"mutation":"R175H"}'
 ```
 
+单独请求 AlphaFold 结构置信度分析：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/structure/alphafold `
+  -ContentType 'application/json' `
+  -Body '{"accession":"P04637","mutation":"R175H"}'
+```
+
 ## 下一阶段接口
 
 `qiwen_bio.predictors.ProteinPredictor` 是模型替换边界。真实版本应实现：
@@ -57,4 +67,4 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/analyze/uniprot
 2. 使用来源清晰的 AMP 数据集训练分类器。
 3. 按序列相似度聚类划分训练、验证、测试集，防止同源泄漏。
 4. 保存模型卡、数据版本、阈值、校准与外部测试指标。
-5. 下载 AlphaFold 结构文件并计算 pLDDT、突变位点与功能区距离。
+5. 计算接触图、突变邻域与功能区距离，并增加三维结构查看器。

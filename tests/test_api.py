@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
-from qiwen_bio.api import app
+from qiwen_bio.api import app, get_alphafold_client
 from qiwen_bio.api import get_uniprot_client
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_uniprot import UNIPROT_RECORD
+from tests.test_alphafold import PDB_TEXT
+from qiwen_bio.alphafold import parse_alphafold_pdb
 
 
 client = TestClient(app)
@@ -55,3 +57,30 @@ def test_analyze_uniprot_uses_resolved_sequence_and_adds_provenance() -> None:
     assert payload["analysis"]["features"]["length"] == 10
     assert payload["analysis"]["evidence_chain"][0]["source"].endswith("/P04637")
     assert payload["analysis"]["evidence_chain"][0]["evidence_type"] == "database_record"
+
+
+def test_alphafold_endpoint_returns_plddt_and_mutation_context() -> None:
+    class StubAlphaFoldClient:
+        def analyze(self, accession: str, mutation: str | None = None):
+            assert accession == "PTEST1"
+            return parse_alphafold_pdb(
+                accession,
+                PDB_TEXT,
+                "https://example.test/model_v6.pdb",
+                mutation,
+            )
+
+    app.dependency_overrides[get_alphafold_client] = lambda: StubAlphaFoldClient()
+    try:
+        response = client.post(
+            "/api/v1/structure/alphafold",
+            json={"accession": "PTEST1", "mutation": "R2H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["structure"]["mean_plddt"] == 71.75
+    assert payload["structure"]["mutation_site"]["confidence"] == "low"
+    assert "not a pathogenicity" in payload["interpretation"]

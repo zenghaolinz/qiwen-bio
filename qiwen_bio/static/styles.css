@@ -47,6 +47,12 @@ button span { color: var(--acid); margin-left: 12px; }
 .annotation dl div { padding: 10px 10px 10px 0; }.annotation dt { color: var(--muted); font-size: 11px; }.annotation dd { margin: 4px 0 0; font-weight: 700; }
 .annotation p { color: var(--muted); line-height: 1.5; font-size: 13px; }
 .annotation a { color: var(--green); font-size: 12px; font-weight: 700; margin-right: 14px; }
+.structure-card { margin-top: 14px; padding: 18px; border: 1px solid var(--line); background: #172a33; color: white; }
+.structure-heading { display: flex; align-items: end; justify-content: space-between; }.structure-heading strong { display: block; margin-top: 4px; color: var(--acid); font: 34px Constantia, Georgia, serif; }.structure-heading span { color: #aebbc0; font-size: 11px; }
+.confidence-bar { display: flex; height: 11px; margin: 17px 0 10px; background: #33454d; overflow: hidden; }.confidence-bar span { min-width: 1px; }
+.confidence-bar .very-high, .confidence-legend .very-high { background: #1652b5; }.confidence-bar .confident, .confidence-legend .confident { background: #65c7df; }.confidence-bar .low, .confidence-legend .low { background: #f0d451; }.confidence-bar .very-low, .confidence-legend .very-low { background: #ef762f; }
+.confidence-legend { display: flex; flex-wrap: wrap; gap: 12px; color: #c5ced1; font-size: 10px; }.confidence-legend i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; }
+.structure-card p { color: #c5ced1; font-size: 12px; line-height: 1.5; margin-bottom: 0; }.structure-card #mutation-confidence { color: white; border-top: 1px solid #42535a; padding-top: 12px; }
 .empty-state { min-height: 380px; display: grid; place-content: center; text-align: center; color: var(--muted); }
 .sequence-mark { font: 13px "Cascadia Code", monospace; letter-spacing: .28em; color: var(--green); overflow-wrap: anywhere; }
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); margin-top: 22px; }

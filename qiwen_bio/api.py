@@ -6,7 +6,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from qiwen_bio import __version__
-from qiwen_bio.models import AnalysisRequest, AnalysisResponse, EvidenceItem, UniProtAnalysisRequest
+from qiwen_bio.alphafold import (
+    AlphaFoldAnalysis,
+    AlphaFoldClient,
+    AlphaFoldNotFoundError,
+    AlphaFoldServiceError,
+    MutationMismatchError,
+)
+from qiwen_bio.models import (
+    AlphaFoldAnalysisRequest,
+    AnalysisRequest,
+    AnalysisResponse,
+    EvidenceItem,
+    UniProtAnalysisRequest,
+)
 from qiwen_bio.pipeline import AnalysisPipeline
 from qiwen_bio.reporting import render_markdown_report
 from qiwen_bio.uniprot import (
@@ -21,6 +34,7 @@ from qiwen_bio.uniprot import (
 STATIC_DIR = Path(__file__).parent / "static"
 pipeline = AnalysisPipeline()
 uniprot_client = UniProtClient()
+alphafold_client = AlphaFoldClient()
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -46,6 +60,10 @@ def analyze(request: AnalysisRequest) -> AnalysisResponse:
 
 def get_uniprot_client() -> UniProtClient:
     return uniprot_client
+
+
+def get_alphafold_client() -> AlphaFoldClient:
+    return alphafold_client
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -89,3 +107,30 @@ def analyze_uniprot(
     )
     analysis.report_markdown = render_markdown_report(analysis)
     return UniProtAnalysisResponse(annotation=annotation, analysis=analysis)
+
+
+class AlphaFoldAnalysisResponse(BaseModel):
+    structure: AlphaFoldAnalysis
+    interpretation: str
+
+
+@app.post("/api/v1/structure/alphafold", response_model=AlphaFoldAnalysisResponse)
+def analyze_alphafold(
+    request: AlphaFoldAnalysisRequest,
+    client: AlphaFoldClient = Depends(get_alphafold_client),
+) -> AlphaFoldAnalysisResponse:
+    try:
+        structure = client.analyze(request.accession, request.mutation)
+    except AlphaFoldNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MutationMismatchError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AlphaFoldServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return AlphaFoldAnalysisResponse(
+        structure=structure,
+        interpretation=(
+            "pLDDT measures local model confidence; it is not a pathogenicity, "
+            "stability, or functional-effect prediction."
+        ),
+    )

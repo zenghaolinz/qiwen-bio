@@ -63,3 +63,12 @@ class UniProtAnalysisRequest(BaseModel):
     identifier: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$")
     organism_id: int = Field(default=9606, gt=0)
     mutation: str | None = Field(default=None, max_length=30)
+
+
+class AlphaFoldAnalysisRequest(BaseModel):
+    accession: str = Field(min_length=6, max_length=10, pattern=r"^[A-Za-z0-9]+$")
+    mutation: str | None = Field(
+        default=None,
+        max_length=30,
+        pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+    )

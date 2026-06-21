@@ -53,9 +53,45 @@ async function requestAnalysis(url, payload) {
     ).join("");
     document.querySelector("#report").textContent = analysis.report_markdown;
     results.classList.remove("hidden");
+    if (data.annotation?.alphafold_url) {
+      await renderStructure(data.annotation.accession, payload.mutation);
+    } else {
+      document.querySelector("#structure").classList.add("hidden");
+    }
   } catch (err) {
     error.textContent = err.message; error.classList.remove("hidden");
   } finally { loading.classList.add("hidden"); }
+}
+
+async function renderStructure(accession, mutation) {
+  const panel = document.querySelector("#structure");
+  try {
+    const response = await fetch("/api/v1/structure/alphafold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accession, mutation: mutation || null }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Structure analysis failed");
+    const structure = data.structure;
+    document.querySelector("#structure-plddt").textContent = structure.mean_plddt.toFixed(2);
+    const distribution = structure.confidence_distribution;
+    document.querySelector("#confidence-bar").innerHTML = ["very_high", "confident", "low", "very_low"]
+      .map(key => `<span class="${key.replace("_", "-")}" style="width:${distribution[key] * 100}%"></span>`)
+      .join("");
+    const mutationLine = document.querySelector("#mutation-confidence");
+    mutationLine.classList.toggle("hidden", !structure.mutation_site);
+    if (structure.mutation_site) {
+      const site = structure.mutation_site;
+      mutationLine.textContent = `${site.wild_type}${site.position}${site.mutant}: pLDDT ${site.plddt.toFixed(1)} (${site.confidence})`;
+    }
+    document.querySelector("#structure-note").textContent = data.interpretation;
+  } catch (err) {
+    document.querySelector("#structure-plddt").textContent = "Unavailable";
+    document.querySelector("#confidence-bar").innerHTML = "";
+    document.querySelector("#structure-note").textContent = err.message;
+  }
+  panel.classList.remove("hidden");
 }
 
 function renderAnnotation(annotation) {
