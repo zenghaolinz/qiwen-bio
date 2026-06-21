@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>启问 Bio</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">QIwen Bio / MVP 0.1</div>
+      <h1>从蛋白序列开始，<br><span>沿证据向前推理。</span></h1>
+      <p>输入一条蛋白质序列，获得确定性理化特征、透明的演示预测和可追溯报告。</p>
+    </header>
+
+    <section class="workspace">
+      <form id="analysis-form" class="panel input-panel">
+        <div class="section-title"><span>01</span> 分析输入</div>
+        <label>蛋白名称（可选）<input id="name" placeholder="例如：Demo peptide"></label>
+        <label>突变（可选）<input id="mutation" placeholder="例如：A12V"></label>
+        <label>蛋白质序列
+          <textarea id="sequence" required spellcheck="false" placeholder="仅支持 20 种标准氨基酸字母">KWKLFKKIEKVGQNIRDGIIKAGPAVAVVGQATQIAK</textarea>
+        </label>
+        <div class="form-row">
+          <span id="sequence-length">37 aa</span>
+          <button type="submit">开始分析 <span>→</span></button>
+        </div>
+        <p class="notice">当前 AMP 预测器是未训练的透明启发式基线，仅用于验证工程闭环。</p>
+      </form>
+
+      <section class="panel result-panel" aria-live="polite">
+        <div class="section-title"><span>02</span> 分析结果</div>
+        <div id="empty-state" class="empty-state">
+          <div class="sequence-mark">ACDEFGHIKLMNPQRSTVWY</div>
+          <p>结果将在这里形成一条带来源与置信度的证据链。</p>
+        </div>
+        <div id="loading" class="hidden">正在计算序列特征…</div>
+        <div id="error" class="error hidden"></div>
+        <div id="results" class="hidden">
+          <div class="metrics">
+            <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>
+            <article><small>分子量</small><strong id="metric-weight"></strong><span>Daltons</span></article>
+            <article><small>疏水比例</small><strong id="metric-hydrophobic"></strong><span>calculated</span></article>
+            <article><small>净电荷代理</small><strong id="metric-charge"></strong><span>calculated</span></article>
+          </div>
+          <div class="prediction">
+            <div><small>演示 AMP 预测</small><strong id="prediction-label"></strong></div>
+            <div class="score"><span id="prediction-score"></span><small>score</small></div>
+          </div>
+          <h2>证据链</h2>
+          <ol id="evidence-list" class="evidence-list"></ol>
+          <details>
+            <summary>查看 Markdown 报告</summary>
+            <pre id="report"></pre>
+          </details>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

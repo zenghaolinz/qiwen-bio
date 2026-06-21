@@ -1,0 +1,60 @@
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+
+AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWY")
+
+
+class AnalysisRequest(BaseModel):
+    sequence: str = Field(min_length=1, max_length=10_000)
+    name: str | None = Field(default=None, max_length=120)
+    mutation: str | None = Field(default=None, max_length=30)
+
+    @field_validator("sequence")
+    @classmethod
+    def normalize_sequence(cls, value: str) -> str:
+        normalized = "".join(value.split()).upper()
+        invalid = sorted(set(normalized) - AMINO_ACIDS)
+        if invalid:
+            raise ValueError(f"unsupported amino-acid symbols: {', '.join(invalid)}")
+        return normalized
+
+
+class SequenceFeatures(BaseModel):
+    length: int
+    molecular_weight_da: float
+    hydrophobic_fraction: float
+    charged_fraction: float
+    net_charge_proxy: int
+    aromatic_fraction: float
+    composition: dict[str, float]
+
+
+class Prediction(BaseModel):
+    task: Literal["antimicrobial_peptide_demo"]
+    label: Literal["candidate", "unlikely"]
+    score: float = Field(ge=0, le=1)
+    model_name: str
+    model_version: str
+    limitations: list[str]
+
+
+class EvidenceItem(BaseModel):
+    stage: str
+    claim: str
+    evidence_type: Literal["calculated", "model_output", "user_input"]
+    source: str
+    confidence: Literal["high", "medium", "low"]
+
+
+class AnalysisResponse(BaseModel):
+    analysis_id: str
+    name: str
+    sequence: str
+    mutation: str | None
+    features: SequenceFeatures
+    prediction: Prediction
+    evidence_chain: list[EvidenceItem]
+    report_markdown: str
+
