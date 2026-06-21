@@ -70,6 +70,19 @@ python -m qiwen_bio.dataset_cli --positive-limit 50 --negative-limit 50
 
 样本写入 `data/datasets/uniprot_amp_samples.csv`（不纳入 Git），审计清单写入 `data/manifests/uniprot_amp_baseline.json`。当前清单记录 100 条样本和 95 个相似性簇；以 70/15/15 为目标，完整簇不可拆分后的实际切分为 69/18/13。正样本定义为带 UniProt `KW-0929` 的 reviewed 条目；负样本仅为未带该关键词的 proxy-negative，不能理解为经实验确认“无抗菌活性”。当前全局比对聚类为 O(n^2)，扩大数据规模前应迁移到 MMseqs2 等工具。
 
+## AMP 离线训练基线
+
+安装模型和训练依赖，然后为冻结切分预计算 ESM-2 embedding 并训练校准逻辑回归：
+
+```powershell
+python -m pip install -e ".[model,training]"
+$env:HF_ENDPOINT='https://huggingface.co'
+python -m qiwen_bio.training_cli precompute
+python -m qiwen_bio.training_cli train
+```
+
+模型以纯 JSON 保存到 `models/amp_esm2_logistic.json`，完整口径和限制见 `docs/model-cards/amp-esm2-logistic-v0.1.md`。固定测试集仅 13 条：ROC AUC 0.8571、balanced accuracy 0.7619、F1 0.7273、Brier 0.1831、ECE 0.3439。由于 proxy-negative 标签、前体蛋白与成熟肽混杂、验证集同时用于校准和选阈值，这个产物仅是离线研究基线，当前明确不替换 Web/API 中的透明演示预测器。
+
 ## 测试
 
 ```powershell

@@ -28,6 +28,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/embedding.py`: pinned embedding providers, content-addressed disk cache, and lazy ESM-2 loading.
 - `qiwen_bio/dataset.py`: AMP curation, conflict auditing, global-identity clustering, grouped splits, and UniProt retrieval.
 - `qiwen_bio/dataset_cli.py`: reproducible dataset preparation and manifest export.
+- `qiwen_bio/training.py`: frozen embedding artifacts, split validation, calibrated training, pure-JSON inference, metrics, and model-card rendering.
+- `qiwen_bio/training_cli.py`: offline ESM precomputation and baseline training commands.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -39,7 +41,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
 | 1C1 Embedding foundation | Complete | Pinned ESM-2 8M provider, 320D mean pooling, versioned disk cache, API and Web trigger | Larger ESM variants, batching, GPU verification |
 | 1C2a Dataset foundation | Complete | Reviewed UniProt AMP-keyword positives, explicit proxy negatives, deduplication, conflict removal, 80% identity clusters, leakage-safe grouped split targeting 70/15/15, CSV/manifest export | Confirmed negative set, scalable MMseqs2 clustering, trained classifier |
-| 1C2b Trained classifier | Planned | Pinned embeddings, calibrated classifier, model card and held-out metrics | Not started |
+| 1C2b Calibrated offline baseline | Complete | Frozen pinned embeddings, train-only scaler/classifier, validation-only Platt calibration and threshold, pure-JSON model, model card, held-out metrics | Product/API replacement rejected because of proxy labels, precursor ambiguity, and n=13 test set |
+| 1C2c Dataset validation | Planned | Curated mature-peptide positives, defensible negatives, scalable clustering, external benchmark | Not started |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
@@ -49,7 +52,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 
 ## Next Priority
 
-Implement stage 1C2b: review proxy-negative bias, precompute pinned embeddings for the frozen split, train and calibrate a baseline, publish a model card with held-out metrics, and only replace the demo heuristic if the evidence supports it.
+Implement stage 1C2c: replace proxy labels with a curated mature-peptide benchmark and defensible negatives, scale homology clustering, and add external evaluation before reconsidering product integration.
 
 ## Dataset Baseline
 
@@ -59,3 +62,10 @@ Implement stage 1C2b: review proxy-negative bias, precompute pinned embeddings f
 - Positive labels mean reviewed UniProtKB entries carrying keyword `KW-0929`.
 - Negative labels are proxy negatives: absence of `KW-0929` is not evidence of absent antimicrobial activity.
 - Clustering uses deterministic Needleman-Wunsch identity and connected components. It is explainable but O(n^2); use MMseqs2 or equivalent before expanding beyond small baselines.
+
+## Offline Model Baseline
+
+- Reproduce embeddings with `python -m qiwen_bio.training_cli precompute` and training with `python -m qiwen_bio.training_cli train`.
+- Model artifact: `models/amp_esm2_logistic.json`; model card: `docs/model-cards/amp-esm2-logistic-v0.1.md`.
+- Frozen test metrics (n=13): ROC AUC 0.8571, balanced accuracy 0.7619, F1 0.7273, Brier 0.1831, ECE 0.3439.
+- The artifact is an offline research baseline. Do not wire it into `ProteinPredictor` or the API without a new stage decision based on curated labels and external evaluation.

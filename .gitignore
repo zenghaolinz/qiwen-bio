@@ -6,3 +6,4 @@ __pycache__/
 dist/
 data/embeddings/
 data/datasets/
+data/training/

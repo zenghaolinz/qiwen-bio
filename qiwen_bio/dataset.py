@@ -69,6 +69,11 @@ class PreparedAmpDataset(BaseModel):
     manifest: AmpDatasetManifest
 
 
+def prepared_samples_sha256(samples: list[PreparedAmpSample]) -> str:
+    payload = [sample.model_dump(mode="json") for sample in samples]
+    return sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
 class UniProtAmpDatasetClient:
     endpoint = "https://rest.uniprot.org/uniprotkb/search"
     fields = "accession,id,sequence,length,keyword"
@@ -325,8 +330,7 @@ def prepare_amp_dataset(
         )
         for index, record in enumerate(merged)
     ]
-    digest_payload = [sample.model_dump(mode="json") for sample in samples]
-    dataset_sha = sha256(json.dumps(digest_payload, sort_keys=True).encode()).hexdigest()
+    dataset_sha = prepared_samples_sha256(samples)
     split_counts = {split: sum(sample.split == split for sample in samples) for split in ("train", "validation", "test")}
     label_counts = {str(label): sum(sample.label == label for sample in samples) for label in (0, 1)}
     manifest = AmpDatasetManifest(
