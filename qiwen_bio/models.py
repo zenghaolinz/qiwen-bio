@@ -43,7 +43,7 @@ class Prediction(BaseModel):
 class EvidenceItem(BaseModel):
     stage: str
     claim: str
-    evidence_type: Literal["calculated", "model_output", "user_input"]
+    evidence_type: Literal["calculated", "model_output", "user_input", "database_record"]
     source: str
     confidence: Literal["high", "medium", "low"]
 
@@ -58,3 +58,8 @@ class AnalysisResponse(BaseModel):
     evidence_chain: list[EvidenceItem]
     report_markdown: str
 
+
+class UniProtAnalysisRequest(BaseModel):
+    identifier: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$")
+    organism_id: int = Field(default=9606, gt=0)
+    mutation: str | None = Field(default=None, max_length=30)

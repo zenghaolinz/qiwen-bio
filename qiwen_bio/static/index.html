@@ -17,6 +17,16 @@
     <section class="workspace">
       <form id="analysis-form" class="panel input-panel">
         <div class="section-title"><span>01</span> 分析输入</div>
+        <div class="lookup-box">
+          <label>基因名或 UniProt ID
+            <div class="lookup-row">
+              <input id="identifier" placeholder="例如：TP53 或 P04637">
+              <button id="lookup-button" type="button">查询并分析</button>
+            </div>
+          </label>
+          <small>默认检索人类（Taxonomy 9606）的 reviewed UniProt 记录</small>
+        </div>
+        <div class="divider"><span>或直接输入序列</span></div>
         <label>蛋白名称（可选）<input id="name" placeholder="例如：Demo peptide"></label>
         <label>突变（可选）<input id="mutation" placeholder="例如：A12V"></label>
         <label>蛋白质序列
@@ -38,6 +48,17 @@
         <div id="loading" class="hidden">正在计算序列特征…</div>
         <div id="error" class="error hidden"></div>
         <div id="results" class="hidden">
+          <div id="annotation" class="annotation hidden">
+            <div><small>UniProt annotation</small><strong id="annotation-name"></strong></div>
+            <dl>
+              <div><dt>Accession</dt><dd id="annotation-accession"></dd></div>
+              <div><dt>Organism</dt><dd id="annotation-organism"></dd></div>
+              <div><dt>GO terms</dt><dd id="annotation-go"></dd></div>
+            </dl>
+            <p id="annotation-function"></p>
+            <a id="annotation-source" target="_blank" rel="noreferrer">查看 UniProt 来源 ↗</a>
+            <a id="annotation-alphafold" class="hidden" target="_blank" rel="noreferrer">查看 AlphaFold 结构 ↗</a>
+          </div>
           <div class="metrics">
             <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>
             <article><small>分子量</small><strong id="metric-weight"></strong><span>Daltons</span></article>

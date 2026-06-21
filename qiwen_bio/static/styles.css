@@ -25,6 +25,13 @@ header p { max-width: 610px; color: var(--muted); font-size: 17px; line-height: 
 .section-title { display: flex; gap: 10px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .section-title span { color: var(--green); }
 label { display: grid; gap: 8px; margin-top: 20px; font-size: 13px; font-weight: 700; }
+.lookup-box { padding: 0 0 20px; border-bottom: 1px solid var(--line); }
+.lookup-box small { display: block; color: var(--muted); margin-top: 10px; letter-spacing: .03em; text-transform: none; line-height: 1.5; }
+.lookup-row { display: grid; grid-template-columns: 1fr auto; }
+.lookup-row input { border-right: 0; }
+.lookup-row button { white-space: nowrap; }
+.divider { height: 20px; margin-top: 9px; display: grid; place-items: center; color: var(--muted); font-size: 11px; }
+.divider span { background: var(--card); padding: 0 10px; }
 input, textarea { width: 100%; border: 1px solid var(--line); background: white; color: var(--ink); padding: 12px; font: inherit; border-radius: 0; outline: none; }
 input:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(29,96,75,.12); }
 textarea { min-height: 170px; resize: vertical; font-family: "Cascadia Code", Consolas, monospace; line-height: 1.6; letter-spacing: .05em; }
@@ -34,6 +41,12 @@ button:hover { background: #124c3a; }
 button span { color: var(--acid); margin-left: 12px; }
 .notice { border-left: 3px solid #d7b928; padding-left: 11px; color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 22px; }
 .result-panel { min-height: 480px; }
+.annotation { margin-top: 22px; padding: 18px; border: 1px solid var(--line); background: #eef2e9; }
+.annotation strong { display: block; margin-top: 5px; font: 24px Constantia, Georgia, serif; }
+.annotation dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.annotation dl div { padding: 10px 10px 10px 0; }.annotation dt { color: var(--muted); font-size: 11px; }.annotation dd { margin: 4px 0 0; font-weight: 700; }
+.annotation p { color: var(--muted); line-height: 1.5; font-size: 13px; }
+.annotation a { color: var(--green); font-size: 12px; font-weight: 700; margin-right: 14px; }
 .empty-state { min-height: 380px; display: grid; place-content: center; text-align: center; color: var(--muted); }
 .sequence-mark { font: 13px "Cascadia Code", monospace; letter-spacing: .28em; color: var(--green); overflow-wrap: anywhere; }
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); margin-top: 22px; }
@@ -55,3 +68,4 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #e9e8df; paddi
 @keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
 @media (max-width: 820px) { main { padding-top: 36px; }.workspace { grid-template-columns: 1fr; }.metrics { grid-template-columns: 1fr 1fr; }.metrics article:nth-child(2) { border-right: 0; }.metrics article { border-bottom: 1px solid var(--line); } }
+@media (max-width: 480px) { .lookup-row { grid-template-columns: 1fr; }.lookup-row input { border-right: 1px solid var(--line); border-bottom: 0; }.annotation dl { grid-template-columns: 1fr; } }
