@@ -1,0 +1,28 @@
+{
+  "source_endpoint": "https://rest.uniprot.org/uniprotkb/{accession}.json",
+  "license_url": "https://www.uniprot.org/help/license",
+  "baseline_dataset_sha256": "6727e736c6fa8373a955a5976fa288b0aeb7b0f25f16752bf11f870f10492730",
+  "input_positive_records": 50,
+  "unique_positive_accessions": 50,
+  "fetch_successes": 50,
+  "fetch_errors": 0,
+  "fetch_failures": [],
+  "entries_with_exact_peptide": 20,
+  "entries_without_exact_peptide": 30,
+  "exact_feature_entry_coverage": 0.4,
+  "excluded_features": 0,
+  "exclusion_reasons": {
+    "no_exact_peptide_feature": 30
+  },
+  "extracted_instances": 26,
+  "unique_mature_sequences": 26,
+  "duplicate_instances": 0,
+  "min_mature_length": 9,
+  "max_mature_length": 56,
+  "mean_mature_length": 31.115384615384617,
+  "mature_sequence_sha256": "d72f8301786000f3cc6f454da6a71c3ee3459b0cf084c42e51859fda10ff4550",
+  "has_exact_mature_positives": true,
+  "has_defensible_negatives": false,
+  "has_independent_external_benchmark": false,
+  "ready_for_model_replacement": false
+}

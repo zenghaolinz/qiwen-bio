@@ -31,6 +31,7 @@ training = [
 
 [project.scripts]
 qiwen-bio-prepare-amp = "qiwen_bio.dataset_cli:main"
+qiwen-bio-curate-mature-amp = "qiwen_bio.mature_peptide_cli:main"
 qiwen-bio-train-amp = "qiwen_bio.training_cli:main"
 
 [tool.pytest.ini_options]

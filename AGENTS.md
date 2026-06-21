@@ -30,6 +30,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/dataset_cli.py`: reproducible dataset preparation and manifest export.
 - `qiwen_bio/training.py`: frozen embedding artifacts, split validation, calibrated training, pure-JSON inference, metrics, and model-card rendering.
 - `qiwen_bio/training_cli.py`: offline ESM precomputation and baseline training commands.
+- `qiwen_bio/mature_peptides.py`: exact UniProt Peptide-feature extraction, positive curation, exclusions, and readiness gates.
+- `qiwen_bio/mature_peptide_cli.py`: reproducible mature-positive audit against the frozen AMP baseline.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -42,7 +44,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1C1 Embedding foundation | Complete | Pinned ESM-2 8M provider, 320D mean pooling, versioned disk cache, API and Web trigger | Larger ESM variants, batching, GPU verification |
 | 1C2a Dataset foundation | Complete | Reviewed UniProt AMP-keyword positives, explicit proxy negatives, deduplication, conflict removal, 80% identity clusters, leakage-safe grouped split targeting 70/15/15, CSV/manifest export | Confirmed negative set, scalable MMseqs2 clustering, trained classifier |
 | 1C2b Calibrated offline baseline | Complete | Frozen pinned embeddings, train-only scaler/classifier, validation-only Platt calibration and threshold, pure-JSON model, model card, held-out metrics | Product/API replacement rejected because of proxy labels, precursor ambiguity, and n=13 test set |
-| 1C2c Dataset validation | Planned | Curated mature-peptide positives, defensible negatives, scalable clustering, external benchmark | Not started |
+| 1C2c Mature-positive curation | Complete | Exact UniProt Peptide-feature extraction, 50-accession audit, 26 unique mature sequences, coverage/length manifest, explicit readiness gates | Defensible negatives and independent external benchmark |
+| 1C2d External dataset validation | Planned | Defensible negatives, scalable clustering, independent benchmark, separate calibration/threshold sets | Not started |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
@@ -52,7 +55,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 
 ## Next Priority
 
-Implement stage 1C2c: replace proxy labels with a curated mature-peptide benchmark and defensible negatives, scale homology clustering, and add external evaluation before reconsidering product integration.
+Implement stage 1C2d: qualify a redistributable source with defensible negatives and an independent benchmark, scale homology clustering, and separate calibration from threshold selection before reconsidering product integration.
 
 ## Dataset Baseline
 
@@ -69,3 +72,11 @@ Implement stage 1C2c: replace proxy labels with a curated mature-peptide benchma
 - Model artifact: `models/amp_esm2_logistic.json`; model card: `docs/model-cards/amp-esm2-logistic-v0.1.md`.
 - Frozen test metrics (n=13): ROC AUC 0.8571, balanced accuracy 0.7619, F1 0.7273, Brier 0.1831, ECE 0.3439.
 - The artifact is an offline research baseline. Do not wire it into `ProteinPredictor` or the API without a new stage decision based on curated labels and external evaluation.
+
+## Mature-Positive Audit
+
+- Reproduce with `python -m qiwen_bio.mature_peptide_cli`.
+- The committed manifest is `data/manifests/uniprot_mature_amp_audit.json`; sequence rows remain under ignored `data/datasets/`.
+- All 50 positive accessions were fetched successfully; 20 (40%) contain exact UniProt `Peptide` features.
+- The audit extracted 26 unique mature sequences of length 9-56 residues (mean 31.12).
+- `has_defensible_negatives` and `has_independent_external_benchmark` remain false, so `ready_for_model_replacement` must remain false.

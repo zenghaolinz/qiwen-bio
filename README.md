@@ -83,6 +83,18 @@ python -m qiwen_bio.training_cli train
 
 模型以纯 JSON 保存到 `models/amp_esm2_logistic.json`，完整口径和限制见 `docs/model-cards/amp-esm2-logistic-v0.1.md`。固定测试集仅 13 条：ROC AUC 0.8571、balanced accuracy 0.7619、F1 0.7273、Brier 0.1831、ECE 0.3439。由于 proxy-negative 标签、前体蛋白与成熟肽混杂、验证集同时用于校准和选阈值，这个产物仅是离线研究基线，当前明确不替换 Web/API 中的透明演示预测器。
 
+### 成熟肽正类审计
+
+从冻结基线的正类 accession 中提取 UniProt exact `Peptide` feature：
+
+```powershell
+python -m qiwen_bio.mature_peptide_cli
+```
+
+50 个 accession 均请求成功，其中 20 个（40%）有 exact 成熟链注释，共得到 26 条唯一序列，长度 9–56 aa，平均 31.12 aa。序列写入忽略目录，聚合审计保存在 `data/manifests/uniprot_mature_amp_audit.json`。当前仍没有防御性负类和独立外部 benchmark，所以模型替换门槛保持关闭。
+
+项目总体进度与逐项口径见 `docs/project-status.md`。
+
 ## 测试
 
 ```powershell
