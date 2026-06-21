@@ -60,6 +60,16 @@ $env:HF_ENDPOINT='https://huggingface.co'
 
 浏览器打开 `http://127.0.0.1:8000`，API 文档位于 `http://127.0.0.1:8000/docs`。
 
+## AMP 数据基线
+
+准备 50 条 reviewed AMP 关键词正样本和 50 条代理负样本，并按 80% 全局序列身份度聚类切分：
+
+```powershell
+python -m qiwen_bio.dataset_cli --positive-limit 50 --negative-limit 50
+```
+
+样本写入 `data/datasets/uniprot_amp_samples.csv`（不纳入 Git），审计清单写入 `data/manifests/uniprot_amp_baseline.json`。当前清单记录 100 条样本和 95 个相似性簇；以 70/15/15 为目标，完整簇不可拆分后的实际切分为 69/18/13。正样本定义为带 UniProt `KW-0929` 的 reviewed 条目；负样本仅为未带该关键词的 proxy-negative，不能理解为经实验确认“无抗菌活性”。当前全局比对聚类为 O(n^2)，扩大数据规模前应迁移到 MMseqs2 等工具。
+
 ## 测试
 
 ```powershell
@@ -124,7 +134,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 ## 后续路线
 
-当前主线是阶段 1C2：整理可再分发的 AMP 数据集、按序列相似性划分数据，并训练经过校准的真实分类器。
+阶段 1C2a 数据基础已经完成：UniProt 查询口径、标签策略、去重与冲突审计、80% 身份度聚类和同源隔离切分均已落盘。当前主线是阶段 1C2b：审查代理负样本偏差、为冻结切分预计算 embedding，并训练和校准真实分类器。
 
 模型路线仍需完成：
 

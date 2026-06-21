@@ -1,0 +1,27 @@
+{
+  "cluster_count": 95,
+  "conflicting_sequences": 0,
+  "conflicts": [],
+  "dataset_sha256": "6727e736c6fa8373a955a5976fa288b0aeb7b0f25f16752bf11f870f10492730",
+  "duplicate_records": 0,
+  "identity_threshold": 0.8,
+  "input_records": 100,
+  "label_counts": {
+    "0": 50,
+    "1": 50
+  },
+  "license_url": "https://www.uniprot.org/help/license",
+  "negative_policy": "proxy-negative: UniProtKB reviewed entries without KW-0929; absence of annotation does not prove absence of antimicrobial activity",
+  "negative_query": "(reviewed:true) AND NOT (keyword:KW-0929) AND (length:[5 TO 200])",
+  "positive_policy": "UniProtKB reviewed entries annotated with antimicrobial keyword KW-0929",
+  "positive_query": "(reviewed:true) AND (keyword:KW-0929) AND (length:[5 TO 200])",
+  "retained_samples": 100,
+  "seed": 42,
+  "source_url": "https://rest.uniprot.org/uniprotkb/search",
+  "split_counts": {
+    "test": 13,
+    "train": 69,
+    "validation": 18
+  },
+  "unique_sequences": 100
+}

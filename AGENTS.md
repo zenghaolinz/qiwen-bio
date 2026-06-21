@@ -26,6 +26,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/pubmed.py`: NCBI E-utilities retrieval and auditable PubMed metadata parsing.
 - `qiwen_bio/synthesis.py`: optional-layer orchestration, graceful degradation, and evidence coverage scoring.
 - `qiwen_bio/embedding.py`: pinned embedding providers, content-addressed disk cache, and lazy ESM-2 loading.
+- `qiwen_bio/dataset.py`: AMP curation, conflict auditing, global-identity clustering, grouped splits, and UniProt retrieval.
+- `qiwen_bio/dataset_cli.py`: reproducible dataset preparation and manifest export.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -36,7 +38,8 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1A Engineering MVP | Complete | Sequence validation, deterministic features, API, Web Demo, evidence chain, Markdown report | ESM embeddings and trained classifier |
 | 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
 | 1C1 Embedding foundation | Complete | Pinned ESM-2 8M provider, 320D mean pooling, versioned disk cache, API and Web trigger | Larger ESM variants, batching, GPU verification |
-| 1C2 Trained classifier | Planned | Curated AMP data, homology-aware splits, calibrated classifier and model card | Not started |
+| 1C2a Dataset foundation | Complete | Reviewed UniProt AMP-keyword positives, explicit proxy negatives, deduplication, conflict removal, 80% identity clusters, leakage-safe grouped split targeting 70/15/15, CSV/manifest export | Confirmed negative set, scalable MMseqs2 clustering, trained classifier |
+| 1C2b Trained classifier | Planned | Pinned embeddings, calibrated classifier, model card and held-out metrics | Not started |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
@@ -46,4 +49,13 @@ Build an evidence-oriented system that connects protein sequence and structure t
 
 ## Next Priority
 
-Implement stage 1C2: select and document a redistributable AMP dataset, remove duplicates, create sequence-similarity-aware train/validation/test splits, precompute pinned embeddings, and train a calibrated baseline before replacing the demo heuristic.
+Implement stage 1C2b: review proxy-negative bias, precompute pinned embeddings for the frozen split, train and calibrate a baseline, publish a model card with held-out metrics, and only replace the demo heuristic if the evidence supports it.
+
+## Dataset Baseline
+
+- Reproduce with `python -m qiwen_bio.dataset_cli --positive-limit 50 --negative-limit 50`.
+- The committed manifest is `data/manifests/uniprot_amp_baseline.json`; sequence rows remain under ignored `data/datasets/`.
+- The frozen baseline retains 100 samples in 95 clusters with balanced labels; indivisible clusters produce an actual 69/18/13 split against the 70/15/15 target.
+- Positive labels mean reviewed UniProtKB entries carrying keyword `KW-0929`.
+- Negative labels are proxy negatives: absence of `KW-0929` is not evidence of absent antimicrobial activity.
+- Clustering uses deterministic Needleman-Wunsch identity and connected components. It is explainable but O(n^2); use MMseqs2 or equivalent before expanding beyond small baselines.
