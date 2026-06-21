@@ -1,6 +1,7 @@
+import httpx
 from fastapi.testclient import TestClient
 
-from qiwen_bio.api import app, get_alphafold_client, get_string_client
+from qiwen_bio.api import app, get_alphafold_client, get_pubmed_client, get_string_client
 from qiwen_bio.api import get_uniprot_client
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_uniprot import UNIPROT_RECORD
@@ -8,6 +9,8 @@ from tests.test_alphafold import PDB_TEXT
 from qiwen_bio.alphafold import parse_alphafold_pdb
 from qiwen_bio.stringdb import build_evidence_graph
 from tests.test_string_graph import ENRICHMENT_RECORDS, NETWORK_RECORDS
+from qiwen_bio.pubmed import PubMedClient
+from tests.test_pubmed import SUMMARY_PAYLOAD
 
 
 client = TestClient(app)
@@ -115,3 +118,29 @@ def test_string_graph_endpoint_returns_typed_evidence_graph() -> None:
     assert payload["seed"] == "TP53"
     assert {node["type"] for node in payload["nodes"]} == {"protein", "process", "pathway"}
     assert any(edge["type"] == "interacts_with" for edge in payload["edges"])
+
+
+def test_pubmed_endpoint_returns_articles_and_report_section() -> None:
+    pubmed = PubMedClient(
+        transport=httpx.MockTransport(
+            lambda request: (
+                httpx.Response(200, json={"esearchresult": {"idlist": ["12345", "67890"]}})
+                if request.url.path.endswith("/esearch.fcgi")
+                else httpx.Response(200, json=SUMMARY_PAYLOAD)
+            )
+        )
+    )
+    app.dependency_overrides[get_pubmed_client] = lambda: pubmed
+    try:
+        response = client.post(
+            "/api/v1/literature/pubmed",
+            json={"protein": "TP53", "context_terms": ["Cell cycle"], "limit": 2},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["evidence"]["articles"]) == 2
+    assert "[PMID 12345]" in payload["markdown_section"]
+    assert "does not by itself validate" in payload["evidence"]["disclaimer"]

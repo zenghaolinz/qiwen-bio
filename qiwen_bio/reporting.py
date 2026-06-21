@@ -2,6 +2,29 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qiwen_bio.models import AnalysisResponse
+    from qiwen_bio.pubmed import LiteratureEvidence
+
+
+def render_literature_section(evidence: "LiteratureEvidence") -> str:
+    if evidence.articles:
+        citations = "\n".join(
+            (
+                f"- {article.title.rstrip('.')} — [PMID {article.pmid}]({article.url}) — "
+                f"{', '.join(article.authors[:3]) or 'Unknown authors'}; "
+                f"*{article.journal}* ({article.published})."
+            )
+            for article in evidence.articles
+        )
+    else:
+        citations = "- No PubMed records matched this query."
+    return f"""## PubMed literature retrieval
+
+**Query:** `{evidence.query}`
+
+{citations}
+
+> {evidence.disclaimer}
+"""
 
 
 def render_markdown_report(result: "AnalysisResponse") -> str:
@@ -41,4 +64,3 @@ The transparent AMP baseline returned **{result.prediction.label}** with a score
 
 Replace the demo predictor with a classifier trained on a curated AMP dataset, split by sequence similarity, then report AUROC, AUPRC, calibration, and an external test result. Candidate activity should be confirmed with an appropriate antimicrobial assay.
 """
-

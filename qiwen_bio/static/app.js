@@ -61,6 +61,7 @@ async function requestAnalysis(url, payload) {
     } else {
       document.querySelector("#structure").classList.add("hidden");
       document.querySelector("#evidence-graph").classList.add("hidden");
+      document.querySelector("#literature").classList.add("hidden");
     }
   } catch (err) {
     error.textContent = err.message; error.classList.remove("hidden");
@@ -171,6 +172,7 @@ function renderNeighborhood(neighbors) {
 async function renderEvidenceGraph(identifier) {
   const panel = document.querySelector("#evidence-graph");
   panel.classList.remove("hidden");
+  document.querySelector("#literature").classList.add("hidden");
   document.querySelector("#graph-title").textContent = identifier;
   document.querySelector("#graph-summary").textContent = "Loading STRING evidence...";
   try {
@@ -188,10 +190,44 @@ async function renderEvidenceGraph(identifier) {
     document.querySelector("#graph-terms").innerHTML = terms.slice(0, 6).map(node =>
       `<div class="graph-term"><b>${escapeHtml(node.external_id)}</b>${escapeHtml(node.label)} · FDR ${formatScientific(node.fdr)}</div>`
     ).join("");
+    await renderLiterature(identifier, terms.slice(0, 3).map(node => node.label));
   } catch (err) {
     document.querySelector("#graph-summary").textContent = "Unavailable";
     document.querySelector("#graph-terms").innerHTML = `<div class="graph-term">${escapeHtml(err.message)}</div>`;
     prepareCanvas(document.querySelector("#graph-canvas"));
+  }
+}
+
+async function renderLiterature(protein, contextTerms) {
+  const panel = document.querySelector("#literature");
+  panel.classList.remove("hidden");
+  document.querySelector("#literature-title").textContent = protein;
+  document.querySelector("#literature-count").textContent = "Searching...";
+  try {
+    const response = await fetch("/api/v1/literature/pubmed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ protein, context_terms: contextTerms, limit: 5 }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "PubMed search failed");
+    const evidence = data.evidence;
+    document.querySelector("#literature-count").textContent = `${evidence.articles.length} records`;
+    document.querySelector("#literature-query").textContent = evidence.query;
+    document.querySelector("#article-list").innerHTML = evidence.articles.length
+      ? evidence.articles.map(article => `
+          <li>
+            <a href="${article.url}" target="_blank" rel="noreferrer">${escapeHtml(article.title)}</a>
+            <p>${escapeHtml(article.authors.slice(0, 3).join(", ") || "Unknown authors")} · ${escapeHtml(article.journal)} · ${escapeHtml(article.published)} · PMID ${article.pmid}</p>
+          </li>`).join("")
+      : "<li>No records matched this query.</li>";
+    document.querySelector("#literature-note").textContent = evidence.disclaimer;
+    const report = document.querySelector("#report");
+    report.textContent = `${report.textContent.trim()}\n\n${data.markdown_section.trim()}\n`;
+  } catch (err) {
+    document.querySelector("#literature-count").textContent = "Unavailable";
+    document.querySelector("#article-list").innerHTML = `<li>${escapeHtml(err.message)}</li>`;
+    document.querySelector("#literature-note").textContent = "Other analysis results remain available.";
   }
 }
 

@@ -18,11 +18,13 @@ from qiwen_bio.models import (
     AnalysisRequest,
     AnalysisResponse,
     EvidenceItem,
+    PubMedSearchRequest,
     StringGraphRequest,
     UniProtAnalysisRequest,
 )
 from qiwen_bio.pipeline import AnalysisPipeline
-from qiwen_bio.reporting import render_markdown_report
+from qiwen_bio.pubmed import LiteratureEvidence, PubMedClient, PubMedServiceError
+from qiwen_bio.reporting import render_literature_section, render_markdown_report
 from qiwen_bio.stringdb import (
     EvidenceGraph,
     StringClient,
@@ -43,6 +45,7 @@ pipeline = AnalysisPipeline()
 uniprot_client = UniProtClient()
 alphafold_client = AlphaFoldClient()
 string_client = StringClient()
+pubmed_client = PubMedClient()
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -76,6 +79,10 @@ def get_alphafold_client() -> AlphaFoldClient:
 
 def get_string_client() -> StringClient:
     return string_client
+
+
+def get_pubmed_client() -> PubMedClient:
+    return pubmed_client
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -165,3 +172,27 @@ def build_string_graph(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except StringServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+class PubMedSearchResponse(BaseModel):
+    evidence: LiteratureEvidence
+    markdown_section: str
+
+
+@app.post("/api/v1/literature/pubmed", response_model=PubMedSearchResponse)
+def search_pubmed(
+    request: PubMedSearchRequest,
+    client: PubMedClient = Depends(get_pubmed_client),
+) -> PubMedSearchResponse:
+    try:
+        evidence = client.search(
+            protein=request.protein,
+            context_terms=request.context_terms,
+            limit=request.limit,
+        )
+    except PubMedServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return PubMedSearchResponse(
+        evidence=evidence,
+        markdown_section=render_literature_section(evidence),
+    )

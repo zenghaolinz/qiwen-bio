@@ -23,6 +23,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/uniprot.py`: UniProt lookup and annotation parsing.
 - `qiwen_bio/alphafold.py`: AlphaFold metadata/PDB retrieval and pLDDT analysis.
 - `qiwen_bio/stringdb.py`: STRING network/enrichment retrieval and typed evidence-graph normalization.
+- `qiwen_bio/pubmed.py`: NCBI E-utilities retrieval and auditable PubMed metadata parsing.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -35,9 +36,10 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
-| 3B Literature evidence | Planned | PubMed evidence binding and report integration | Not started |
+| 3B Literature retrieval | Complete | Context-bound PubMed search, structured citations, PMID links, Markdown report section | Abstract/full-text appraisal, claim-level support classification |
+| 3C Evidence synthesis | Planned | Unified structure/graph/literature report and calibrated evidence scoring | Not started |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 3B: retrieve PubMed records for selected proteins and pathways, bind citations to graph claims, and extend the Markdown report without allowing uncited biological conclusions.
+Implement stage 3C: combine structure, STRING, and PubMed outputs into one server-generated report, add rule-based evidence completeness scores, and keep retrieval matches separate from claim-level support.

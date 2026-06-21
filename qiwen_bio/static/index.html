@@ -105,6 +105,18 @@
             <div id="graph-terms" class="graph-terms"></div>
             <p id="graph-note">STRING scores and enrichment FDR values are database evidence, not causal or phenotype predictions.</p>
           </div>
+          <div id="literature" class="literature-card hidden">
+            <div class="literature-heading">
+              <div><small>PubMed retrieval</small><strong id="literature-title"></strong></div>
+              <span id="literature-count"></span>
+            </div>
+            <details class="query-details">
+              <summary>查看检索式</summary>
+              <code id="literature-query"></code>
+            </details>
+            <ol id="article-list" class="article-list"></ol>
+            <p id="literature-note"></p>
+          </div>
           <div class="metrics">
             <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>
             <article><small>分子量</small><strong id="metric-weight"></strong><span>Daltons</span></article>
