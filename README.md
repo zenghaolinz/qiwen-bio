@@ -20,6 +20,14 @@
 
 ## 启动
 
+Windows 可直接双击 `start.bat`，或在终端运行：
+
+```powershell
+.\start.bat
+```
+
+手动启动方式：
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
