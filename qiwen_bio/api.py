@@ -18,12 +18,21 @@ from qiwen_bio.models import (
     AnalysisRequest,
     AnalysisResponse,
     ComprehensiveReportRequest,
+    EmbeddingRequest,
     EvidenceItem,
     PubMedSearchRequest,
     StringGraphRequest,
     UniProtAnalysisRequest,
 )
 from qiwen_bio.pipeline import AnalysisPipeline
+from qiwen_bio.embedding import (
+    EmbeddingCache,
+    EmbeddingService,
+    Esm2EmbeddingProvider,
+    ModelDependencyError,
+    ModelLoadError,
+    ProteinEmbedding,
+)
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedClient, PubMedServiceError
 from qiwen_bio.reporting import render_literature_section, render_markdown_report
 from qiwen_bio.stringdb import (
@@ -48,6 +57,10 @@ uniprot_client = UniProtClient()
 alphafold_client = AlphaFoldClient()
 string_client = StringClient()
 pubmed_client = PubMedClient()
+embedding_service = EmbeddingService(
+    Esm2EmbeddingProvider(),
+    EmbeddingCache(Path(__file__).resolve().parent.parent / "data" / "embeddings"),
+)
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -85,6 +98,10 @@ def get_string_client() -> StringClient:
 
 def get_pubmed_client() -> PubMedClient:
     return pubmed_client
+
+
+def get_embedding_service() -> EmbeddingService:
+    return embedding_service
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -228,3 +245,16 @@ def comprehensive_report(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except UniProtServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/embedding/esm2", response_model=ProteinEmbedding)
+def embed_sequence(
+    request: EmbeddingRequest,
+    service: EmbeddingService = Depends(get_embedding_service),
+) -> ProteinEmbedding:
+    try:
+        return service.embed(request.sequence)
+    except (ModelDependencyError, ModelLoadError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

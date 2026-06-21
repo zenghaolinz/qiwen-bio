@@ -94,3 +94,16 @@ class ComprehensiveReportRequest(BaseModel):
     interaction_limit: int = Field(default=8, ge=1, le=20)
     required_score: int = Field(default=700, ge=0, le=1000)
     literature_limit: int = Field(default=5, ge=1, le=10)
+
+
+class EmbeddingRequest(BaseModel):
+    sequence: str = Field(min_length=1, max_length=1022)
+
+    @field_validator("sequence")
+    @classmethod
+    def normalize_embedding_sequence(cls, value: str) -> str:
+        normalized = "".join(value.split()).upper()
+        invalid = sorted(set(normalized) - AMINO_ACIDS)
+        if invalid:
+            raise ValueError(f"unsupported amino-acid symbols: {', '.join(invalid)}")
+        return normalized

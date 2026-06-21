@@ -24,6 +24,8 @@
 - 提取 PMID、题名、作者、期刊、日期和 DOI，并生成可追踪 Markdown 引用
 - 一次请求整合 UniProt、AlphaFold、STRING、PubMed 与序列分析结果
 - 输出六层证据完整度评分、缺失层警告和服务端统一 Markdown 报告
+- 使用固定 revision 的 ESM-2 8M 模型生成 320 维 mean-pooled embedding
+- 按模型、revision、pooling 和序列内容寻址缓存 embedding
 
 > 当前 AMP 预测器是未训练的透明启发式基线，只用于验证系统流程，不可用于科研、临床或实验决策。
 
@@ -42,6 +44,18 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 uvicorn qiwen_bio.api:app --reload
+```
+
+启用真实 ESM-2 embedding：
+
+```powershell
+python -m pip install -e ".[model]"
+```
+
+模型权重首次使用时从 Hugging Face 下载。若本机设置了不可用的镜像，可临时恢复官方端点：
+
+```powershell
+$env:HF_ENDPOINT='https://huggingface.co'
 ```
 
 浏览器打开 `http://127.0.0.1:8000`，API 文档位于 `http://127.0.0.1:8000/docs`。
@@ -100,9 +114,17 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/report/comprehe
   -Body '{"identifier":"TP53","organism_id":9606,"mutation":"R175H"}'
 ```
 
+提取 ESM-2 embedding：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 `
+  -ContentType 'application/json' `
+  -Body '{"sequence":"KWKLFKKIEKVGQNIRDGIIKAGPAVAVVGQATQIAK"}'
+```
+
 ## 后续路线
 
-当前主线回到阶段 1C：接入版本化 ESM embedding、缓存和经过同源去重验证的真实分类器，逐步替换演示启发式。
+当前主线是阶段 1C2：整理可再分发的 AMP 数据集、按序列相似性划分数据，并训练经过校准的真实分类器。
 
 模型路线仍需完成：
 
@@ -120,3 +142,5 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/report/comprehe
 PubMed 模块只提供上下文检索和书目元数据。检索命中不等于文献支持某个生物结论；使用前仍需阅读摘要或全文并评估研究设计与证据质量。
 
 综合报告的 100 分是证据覆盖度：序列 15、UniProt 注释 20、结构 20、互作 15、过程/通路 15、文献 15。它不表示结论正确率、致病概率、模型置信度或实验成功率。可选数据库失败时报告仍会返回，并明确列出缺失层。
+
+当前 embedding 模型为 `facebook/esm2_t6_8M_UR50D`，固定 revision `c731040fcd8d73dceaa04b0a8e6329b345b0f5df`，最多接收 1022 个残基。缓存位于 `data/embeddings/`，不纳入 Git。当前开发环境安装的是 CPU 版 PyTorch；只有安装 CUDA 版 PyTorch 时 provider 才会自动使用 GPU。Embedding 是特征表示，不是功能或 AMP 分类结论。

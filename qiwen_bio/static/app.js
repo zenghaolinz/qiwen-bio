@@ -2,6 +2,7 @@ const form = document.querySelector("#analysis-form");
 const sequenceInput = document.querySelector("#sequence");
 const lengthLabel = document.querySelector("#sequence-length");
 const lookupButton = document.querySelector("#lookup-button");
+const embeddingButton = document.querySelector("#embedding-button");
 
 function sequenceLength() {
   return sequenceInput.value.replace(/\s/g, "").length;
@@ -25,6 +26,27 @@ lookupButton.addEventListener("click", async () => {
     organism_id: 9606,
     mutation: document.querySelector("#mutation").value || null,
   });
+});
+
+embeddingButton.addEventListener("click", async () => {
+  const status = document.querySelector("#embedding-status");
+  embeddingButton.disabled = true;
+  status.textContent = "Loading pinned ESM-2 model or checking cache...";
+  try {
+    const response = await fetch("/api/v1/embedding/esm2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequence: sequenceInput.value }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Embedding failed");
+    const preview = data.vector.slice(0, 5).map(value => Number(value).toFixed(4)).join(", ");
+    status.textContent = `${data.model_id} · ${data.dimension}D · ${data.cached ? "cache hit" : "computed"} · [${preview}, …]`;
+  } catch (err) {
+    status.textContent = err.message;
+  } finally {
+    embeddingButton.disabled = false;
+  }
 });
 
 async function requestAnalysis(url, payload) {

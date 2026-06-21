@@ -1,7 +1,13 @@
 import httpx
 from fastapi.testclient import TestClient
 
-from qiwen_bio.api import app, get_alphafold_client, get_pubmed_client, get_string_client
+from qiwen_bio.api import (
+    app,
+    get_alphafold_client,
+    get_embedding_service,
+    get_pubmed_client,
+    get_string_client,
+)
 from qiwen_bio.api import get_uniprot_client
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_uniprot import UNIPROT_RECORD
@@ -17,6 +23,8 @@ from tests.test_synthesis import (
     StubStringClient as SynthesisStringClient,
     StubUniProtClient as SynthesisUniProtClient,
 )
+from qiwen_bio.embedding import EmbeddingCache, EmbeddingService, ModelLoadError
+from tests.test_embedding import FakeProvider
 
 
 client = TestClient(app)
@@ -172,3 +180,33 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     assert payload["structure"]["mutation_site"]["position"] == 2
     assert payload["literature"]["articles"][0]["pmid"] == "12345"
     assert payload["report_markdown"].startswith("# Qiwen Bio comprehensive report")
+
+
+def test_embedding_endpoint_uses_versioned_cache(tmp_path) -> None:
+    service = EmbeddingService(FakeProvider(), EmbeddingCache(tmp_path))
+    app.dependency_overrides[get_embedding_service] = lambda: service
+    try:
+        first = client.post("/api/v1/embedding/esm2", json={"sequence": "ACDE"})
+        second = client.post("/api/v1/embedding/esm2", json={"sequence": "ACDE"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert first.status_code == 200
+    assert first.json()["cached"] is False
+    assert second.json()["cached"] is True
+    assert second.json()["vector"] == [4.0, 2.0, 3.0]
+
+
+def test_embedding_endpoint_maps_model_loading_failure_to_503() -> None:
+    class FailingEmbeddingService:
+        def embed(self, sequence: str):
+            raise ModelLoadError("model files unavailable")
+
+    app.dependency_overrides[get_embedding_service] = lambda: FailingEmbeddingService()
+    try:
+        response = client.post("/api/v1/embedding/esm2", json={"sequence": "ACDE"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "model files unavailable"

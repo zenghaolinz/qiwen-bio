@@ -39,6 +39,7 @@ textarea { min-height: 170px; resize: vertical; font-family: "Cascadia Code", Co
 button { border: 0; padding: 13px 18px; background: var(--green); color: white; font-weight: 750; cursor: pointer; }
 button:hover { background: #124c3a; }
 button span { color: var(--acid); margin-left: 12px; }
+.embedding-tool { margin-top: 14px; padding: 12px; border: 1px solid var(--line); background: #eef2e9; }.embedding-tool button { width: 100%; color: var(--green); background: transparent; border: 1px solid var(--green); }.embedding-tool button:hover { color: white; background: var(--green); }.embedding-tool button:disabled { opacity: .55; cursor: wait; }.embedding-tool div { margin-top: 9px; color: var(--muted); font: 10px "Cascadia Code", monospace; line-height: 1.5; overflow-wrap: anywhere; }
 .notice { border-left: 3px solid #d7b928; padding-left: 11px; color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 22px; }
 .result-panel { min-height: 480px; }
 .coverage-card { margin-top: 22px; padding: 18px; color: white; background: #1d604b; }.coverage-score { display: flex; justify-content: space-between; align-items: end; }.coverage-score strong { display: block; margin-top: 4px; color: var(--acid); font: 38px Constantia, Georgia, serif; }.coverage-score > span { text-transform: uppercase; font: 11px Bahnschrift, sans-serif; letter-spacing: .12em; }
