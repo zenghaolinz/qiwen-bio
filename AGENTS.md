@@ -22,6 +22,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/predictors.py`: replaceable prediction protocol and demo baseline.
 - `qiwen_bio/uniprot.py`: UniProt lookup and annotation parsing.
 - `qiwen_bio/alphafold.py`: AlphaFold metadata/PDB retrieval and pLDDT analysis.
+- `qiwen_bio/stringdb.py`: STRING network/enrichment retrieval and typed evidence-graph normalization.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -33,9 +34,10 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
-| 3 Multiscale reasoning | Planned | Knowledge graph, pathways, literature evidence, phenotype chain | Not started |
+| 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
+| 3B Literature evidence | Planned | PubMed evidence binding and report integration | Not started |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 3A: add STRING interactions and pathway annotations, normalize them into typed graph nodes/edges, and expose a local evidence graph without using an LLM to invent missing links.
+Implement stage 3B: retrieve PubMed records for selected proteins and pathways, bind citations to graph claims, and extend the Markdown report without allowing uncited biological conclusions.

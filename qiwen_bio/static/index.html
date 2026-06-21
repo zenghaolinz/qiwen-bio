@@ -89,6 +89,22 @@
               <div id="neighbor-list"></div>
             </div>
           </div>
+          <div id="evidence-graph" class="graph-card hidden">
+            <div class="graph-heading">
+              <div><small>STRING evidence graph</small><strong id="graph-title"></strong></div>
+              <span id="graph-summary"></span>
+            </div>
+            <div class="graph-legend">
+              <span><i class="protein-node"></i>Protein</span>
+              <span><i class="pathway-node"></i>Pathway</span>
+              <span><i class="process-node"></i>Process</span>
+              <span><b></b>Interaction</span>
+              <span><b class="annotation-edge"></b>Annotation</span>
+            </div>
+            <canvas id="graph-canvas" height="430" aria-label="STRING protein interaction and enrichment graph"></canvas>
+            <div id="graph-terms" class="graph-terms"></div>
+            <p id="graph-note">STRING scores and enrichment FDR values are database evidence, not causal or phenotype predictions.</p>
+          </div>
           <div class="metrics">
             <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>
             <article><small>分子量</small><strong id="metric-weight"></strong><span>Daltons</span></article>

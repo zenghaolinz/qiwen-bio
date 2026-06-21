@@ -18,10 +18,17 @@ from qiwen_bio.models import (
     AnalysisRequest,
     AnalysisResponse,
     EvidenceItem,
+    StringGraphRequest,
     UniProtAnalysisRequest,
 )
 from qiwen_bio.pipeline import AnalysisPipeline
 from qiwen_bio.reporting import render_markdown_report
+from qiwen_bio.stringdb import (
+    EvidenceGraph,
+    StringClient,
+    StringNotFoundError,
+    StringServiceError,
+)
 from qiwen_bio.uniprot import (
     AmbiguousProteinError,
     ProteinNotFoundError,
@@ -35,6 +42,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 pipeline = AnalysisPipeline()
 uniprot_client = UniProtClient()
 alphafold_client = AlphaFoldClient()
+string_client = StringClient()
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -64,6 +72,10 @@ def get_uniprot_client() -> UniProtClient:
 
 def get_alphafold_client() -> AlphaFoldClient:
     return alphafold_client
+
+
+def get_string_client() -> StringClient:
+    return string_client
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -135,3 +147,21 @@ def analyze_alphafold(
             "neighbors indicate CA geometric proximity only, not biochemical interaction."
         ),
     )
+
+
+@app.post("/api/v1/graph/string", response_model=EvidenceGraph)
+def build_string_graph(
+    request: StringGraphRequest,
+    client: StringClient = Depends(get_string_client),
+) -> EvidenceGraph:
+    try:
+        return client.build_graph(
+            identifier=request.identifier,
+            species=request.organism_id,
+            limit=request.limit,
+            required_score=request.required_score,
+        )
+    except StringNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except StringServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

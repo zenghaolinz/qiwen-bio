@@ -1,11 +1,13 @@
 from fastapi.testclient import TestClient
 
-from qiwen_bio.api import app, get_alphafold_client
+from qiwen_bio.api import app, get_alphafold_client, get_string_client
 from qiwen_bio.api import get_uniprot_client
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_uniprot import UNIPROT_RECORD
 from tests.test_alphafold import PDB_TEXT
 from qiwen_bio.alphafold import parse_alphafold_pdb
+from qiwen_bio.stringdb import build_evidence_graph
+from tests.test_string_graph import ENRICHMENT_RECORDS, NETWORK_RECORDS
 
 
 client = TestClient(app)
@@ -85,3 +87,31 @@ def test_alphafold_endpoint_returns_plddt_and_mutation_context() -> None:
     assert payload["structure"]["mutation_site"]["confidence"] == "low"
     assert "not a pathogenicity" in payload["interpretation"]
     assert "geometric proximity" in payload["interpretation"]
+
+
+def test_string_graph_endpoint_returns_typed_evidence_graph() -> None:
+    class StubStringClient:
+        def build_graph(
+            self,
+            identifier: str,
+            species: int = 9606,
+            limit: int = 10,
+            required_score: int = 700,
+        ):
+            assert (identifier, species, limit, required_score) == ("TP53", 9606, 5, 800)
+            return build_evidence_graph(identifier, species, NETWORK_RECORDS, ENRICHMENT_RECORDS)
+
+    app.dependency_overrides[get_string_client] = lambda: StubStringClient()
+    try:
+        response = client.post(
+            "/api/v1/graph/string",
+            json={"identifier": "TP53", "organism_id": 9606, "limit": 5, "required_score": 800},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["seed"] == "TP53"
+    assert {node["type"] for node in payload["nodes"]} == {"protein", "process", "pathway"}
+    assert any(edge["type"] == "interacts_with" for edge in payload["edges"])

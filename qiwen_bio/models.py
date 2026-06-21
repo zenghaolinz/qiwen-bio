@@ -72,3 +72,10 @@ class AlphaFoldAnalysisRequest(BaseModel):
         max_length=30,
         pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
     )
+
+
+class StringGraphRequest(BaseModel):
+    identifier: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$")
+    organism_id: int = Field(default=9606, gt=0)
+    limit: int = Field(default=10, ge=1, le=20)
+    required_score: int = Field(default=700, ge=0, le=1000)

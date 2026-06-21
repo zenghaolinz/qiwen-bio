@@ -53,10 +53,14 @@ async function requestAnalysis(url, payload) {
     ).join("");
     document.querySelector("#report").textContent = analysis.report_markdown;
     results.classList.remove("hidden");
-    if (data.annotation?.alphafold_url) {
-      await renderStructure(data.annotation.accession, payload.mutation);
+    if (data.annotation) {
+      const enrichments = [renderEvidenceGraph(data.annotation.gene_names[0] || data.annotation.accession)];
+      if (data.annotation.alphafold_url) enrichments.push(renderStructure(data.annotation.accession, payload.mutation));
+      else document.querySelector("#structure").classList.add("hidden");
+      await Promise.all(enrichments);
     } else {
       document.querySelector("#structure").classList.add("hidden");
+      document.querySelector("#evidence-graph").classList.add("hidden");
     }
   } catch (err) {
     error.textContent = err.message; error.classList.remove("hidden");
@@ -163,6 +167,78 @@ function renderNeighborhood(neighbors) {
     `<span class="neighbor-chip"><b>${item.amino_acid}${item.position}</b> · ${item.distance_angstrom.toFixed(2)} Å</span>`
   ).join("");
 }
+
+async function renderEvidenceGraph(identifier) {
+  const panel = document.querySelector("#evidence-graph");
+  panel.classList.remove("hidden");
+  document.querySelector("#graph-title").textContent = identifier;
+  document.querySelector("#graph-summary").textContent = "Loading STRING evidence...";
+  try {
+    const response = await fetch("/api/v1/graph/string", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, organism_id: 9606, limit: 8, required_score: 700 }),
+    });
+    const graph = await response.json();
+    if (!response.ok) throw new Error(typeof graph.detail === "string" ? graph.detail : "STRING graph failed");
+    const interactions = graph.edges.filter(edge => edge.type === "interacts_with").length;
+    const terms = graph.nodes.filter(node => node.type !== "protein");
+    document.querySelector("#graph-summary").textContent = `${graph.nodes.length} nodes · ${interactions} interactions · ${terms.length} terms`;
+    drawEvidenceGraph(graph);
+    document.querySelector("#graph-terms").innerHTML = terms.slice(0, 6).map(node =>
+      `<div class="graph-term"><b>${escapeHtml(node.external_id)}</b>${escapeHtml(node.label)} · FDR ${formatScientific(node.fdr)}</div>`
+    ).join("");
+  } catch (err) {
+    document.querySelector("#graph-summary").textContent = "Unavailable";
+    document.querySelector("#graph-terms").innerHTML = `<div class="graph-term">${escapeHtml(err.message)}</div>`;
+    prepareCanvas(document.querySelector("#graph-canvas"));
+  }
+}
+
+function drawEvidenceGraph(graph) {
+  const canvas = document.querySelector("#graph-canvas");
+  const { ctx, width, height } = prepareCanvas(canvas);
+  const proteins = graph.nodes.filter(node => node.type === "protein");
+  const terms = graph.nodes.filter(node => node.type !== "protein");
+  const seed = proteins.find(node => node.label.toUpperCase() === graph.seed.toUpperCase()) || proteins[0];
+  const others = proteins.filter(node => node.id !== seed?.id);
+  const positions = new Map();
+  if (seed) positions.set(seed.id, { x: width / 2, y: height / 2 });
+  placeRing(others, width / 2, height / 2, Math.min(width, height) * 0.23, positions, -Math.PI / 2);
+  placeRing(terms, width / 2, height / 2, Math.min(width, height) * 0.43, positions, -Math.PI / 2);
+
+  graph.edges.forEach(edge => {
+    const source = positions.get(edge.source), target = positions.get(edge.target);
+    if (!source || !target) return;
+    ctx.beginPath(); ctx.moveTo(source.x, source.y); ctx.lineTo(target.x, target.y);
+    ctx.strokeStyle = edge.type === "interacts_with" ? "rgba(45, 71, 62, .42)" : "rgba(179, 138, 29, .25)";
+    ctx.lineWidth = edge.type === "interacts_with" ? 1.2 + (edge.score || 0) * 1.8 : 1;
+    ctx.setLineDash(edge.type === "annotated_to" ? [3, 4] : []); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  graph.nodes.forEach(node => {
+    const point = positions.get(node.id); if (!point) return;
+    const isSeed = node.id === seed?.id;
+    ctx.beginPath();
+    if (node.type === "pathway") ctx.rect(point.x - 6, point.y - 6, 12, 12);
+    else if (node.type === "process") { ctx.moveTo(point.x, point.y - 7); ctx.lineTo(point.x + 7, point.y); ctx.lineTo(point.x, point.y + 7); ctx.lineTo(point.x - 7, point.y); ctx.closePath(); }
+    else ctx.arc(point.x, point.y, isSeed ? 10 : 7, 0, Math.PI * 2);
+    ctx.fillStyle = node.type === "protein" ? (isSeed ? "#d7f45b" : "#1d604b") : node.type === "pathway" ? "#d6a824" : "#3d88a8";
+    ctx.fill(); ctx.strokeStyle = "rgba(20,33,29,.6)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#26332f"; ctx.font = node.type === "protein" ? "bold 10px Candara" : "9px Candara";
+    ctx.textAlign = "center"; ctx.fillText(shortLabel(node.label, node.type === "protein" ? 14 : 20), point.x, point.y + (node.type === "protein" ? 20 : 18));
+  });
+}
+
+function placeRing(nodes, centerX, centerY, radius, positions, offset) {
+  nodes.forEach((node, index) => {
+    const angle = offset + (Math.PI * 2 * index) / Math.max(nodes.length, 1);
+    positions.set(node.id, { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius });
+  });
+}
+
+function shortLabel(value, length) { return value.length > length ? `${value.slice(0, length - 1)}…` : value; }
+function formatScientific(value) { return value == null ? "n/a" : Number(value).toExponential(2); }
 
 function prepareCanvas(canvas) {
   const ratio = window.devicePixelRatio || 1, width = canvas.clientWidth, height = canvas.clientHeight;

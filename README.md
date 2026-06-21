@@ -17,6 +17,9 @@
 - 对 `R175H` 形式的突变进行残基一致性校验和位点置信度分析
 - 计算非局部 CA 接触图和突变位点 8 Å 空间邻域
 - 使用原生 Canvas 展示可拖拽旋转的主链和接触图，无需前端 CDN
+- 接入 STRING 高置信互作与过程/通路富集结果
+- 输出带来源、互作分数和富集 FDR 的 typed evidence graph
+- 使用确定性双环 Canvas 展示蛋白、过程、通路和两类证据边
 
 > 当前 AMP 预测器是未训练的透明启发式基线，只用于验证系统流程，不可用于科研、临床或实验决策。
 
@@ -69,9 +72,17 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/structure/alpha
   -Body '{"accession":"P04637","mutation":"R175H"}'
 ```
 
+请求 STRING 局部证据图：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/graph/string `
+  -ContentType 'application/json' `
+  -Body '{"identifier":"TP53","organism_id":9606,"limit":8,"required_score":700}'
+```
+
 ## 后续路线
 
-当前主线是阶段 3A：接入 STRING 互作与通路注释，将数据库结果规范化为带来源的图节点和边。
+当前主线是阶段 3B：接入 PubMed 文献证据，将引用绑定到图谱事实和 Markdown 报告。
 
 模型路线仍需完成：
 
@@ -83,3 +94,5 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/structure/alpha
 4. 保存模型卡、数据版本、阈值、校准与外部测试指标。
 
 结构分析中的接触定义为 CA 距离不超过 8 Å，并排除序列间隔不超过 2 的局部主链邻接。该结果只表示几何邻近，不能直接解释为生化互作、致病性或稳定性变化。
+
+当前通路节点来自 STRING enrichment 返回的 KEGG、Reactome 和 WikiPathways 类别，并不是对这些数据库的直接 API 接入。互作分数和富集 FDR 是数据库证据，不代表因果关系或表型结论。
