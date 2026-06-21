@@ -32,11 +32,10 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1A Engineering MVP | Complete | Sequence validation, deterministic features, API, Web Demo, evidence chain, Markdown report | ESM embeddings and trained classifier |
 | 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
-| 2B Structure context | Planned | Contact map, mutation neighborhood and structure visualization | Not started |
+| 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
 | 3 Multiscale reasoning | Planned | Knowledge graph, pathways, literature evidence, phenotype chain | Not started |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 2B: derive residue contacts from AlphaFold coordinates, summarize the mutation neighborhood, and add an interactive 3D structure viewer without inferring functional effects from geometry alone.
-
+Implement stage 3A: add STRING interactions and pathway annotations, normalize them into typed graph nodes/edges, and expose a local evidence graph without using an LLM to invent missing links.

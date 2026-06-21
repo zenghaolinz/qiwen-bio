@@ -84,3 +84,4 @@ def test_alphafold_endpoint_returns_plddt_and_mutation_context() -> None:
     assert payload["structure"]["mean_plddt"] == 71.75
     assert payload["structure"]["mutation_site"]["confidence"] == "low"
     assert "not a pathogenicity" in payload["interpretation"]
+    assert "geometric proximity" in payload["interpretation"]

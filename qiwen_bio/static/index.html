@@ -55,7 +55,10 @@
               <div><dt>Organism</dt><dd id="annotation-organism"></dd></div>
               <div><dt>GO terms</dt><dd id="annotation-go"></dd></div>
             </dl>
-            <p id="annotation-function"></p>
+            <details class="function-details">
+              <summary>查看 UniProt 功能注释</summary>
+              <p id="annotation-function"></p>
+            </details>
             <a id="annotation-source" target="_blank" rel="noreferrer">查看 UniProt 来源 ↗</a>
             <a id="annotation-alphafold" class="hidden" target="_blank" rel="noreferrer">查看 AlphaFold 结构 ↗</a>
           </div>
@@ -71,6 +74,20 @@
             </div>
             <p id="mutation-confidence" class="hidden"></p>
             <p id="structure-note"></p>
+            <div class="viewer-grid">
+              <figure>
+                <figcaption>CA backbone · drag to rotate</figcaption>
+                <canvas id="structure-viewer" height="280"></canvas>
+              </figure>
+              <figure>
+                <figcaption id="contact-caption">Contact map · CA ≤ 8 Å</figcaption>
+                <canvas id="contact-map" height="280"></canvas>
+              </figure>
+            </div>
+            <div id="mutation-neighborhood" class="neighborhood hidden">
+              <small>Mutation neighborhood · 8 Å</small>
+              <div id="neighbor-list"></div>
+            </div>
           </div>
           <div class="metrics">
             <article><small>长度</small><strong id="metric-length"></strong><span>amino acids</span></article>

@@ -131,6 +131,7 @@ def analyze_alphafold(
         structure=structure,
         interpretation=(
             "pLDDT measures local model confidence; it is not a pathogenicity, "
-            "stability, or functional-effect prediction."
+            "stability, or functional-effect prediction. Contact pairs and mutation "
+            "neighbors indicate CA geometric proximity only, not biochemical interaction."
         ),
     )

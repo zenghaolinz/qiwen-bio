@@ -36,6 +36,21 @@ def test_parse_pdb_summarizes_plddt_and_mutation_site() -> None:
     assert analysis.mutation_site.position == 2
     assert analysis.mutation_site.plddt == 68.0
     assert analysis.mutation_site.confidence == "low"
+    assert [(item.position, item.distance_angstrom) for item in analysis.mutation_neighborhood] == [
+        (1, 1.0),
+        (3, 1.0),
+        (4, 2.0),
+    ]
+    assert [(item.residue_a, item.residue_b) for item in analysis.contact_map.contacts] == [(1, 4)]
+    assert analysis.contact_map.threshold_angstrom == 8.0
+    assert len(analysis.coordinates) == 4
+
+
+def test_structure_without_mutation_has_contact_map_but_no_neighborhood() -> None:
+    analysis = parse_alphafold_pdb("PTEST1", PDB_TEXT, "https://example.test/model.pdb")
+
+    assert analysis.mutation_neighborhood == []
+    assert analysis.contact_map.total_contacts == 1
 
 
 def test_parse_pdb_rejects_mismatched_mutation_residue() -> None:

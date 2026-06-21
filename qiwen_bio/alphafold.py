@@ -1,4 +1,5 @@
 import re
+from math import dist
 from statistics import mean
 
 import httpx
@@ -42,6 +43,35 @@ class MutationSiteAnalysis(BaseModel):
     confidence: str
 
 
+class ResidueCoordinate(BaseModel):
+    position: int
+    amino_acid: str
+    x: float
+    y: float
+    z: float
+    plddt: float
+
+
+class ResidueContact(BaseModel):
+    residue_a: int
+    residue_b: int
+    distance_angstrom: float
+
+
+class ContactMap(BaseModel):
+    threshold_angstrom: float
+    total_contacts: int
+    truncated: bool
+    contacts: list[ResidueContact]
+
+
+class MutationNeighbor(BaseModel):
+    position: int
+    amino_acid: str
+    distance_angstrom: float
+    plddt: float
+
+
 class AlphaFoldAnalysis(BaseModel):
     accession: str
     entry_id: str | None = None
@@ -51,6 +81,9 @@ class AlphaFoldAnalysis(BaseModel):
     mean_plddt: float
     confidence_distribution: ConfidenceDistribution
     mutation_site: MutationSiteAnalysis | None = None
+    mutation_neighborhood: list[MutationNeighbor]
+    contact_map: ContactMap
+    coordinates: list[ResidueCoordinate]
 
 
 def confidence_label(plddt: float) -> str:
@@ -69,23 +102,34 @@ def parse_alphafold_pdb(
     structure_url: str,
     mutation: str | None = None,
 ) -> AlphaFoldAnalysis:
-    residues: dict[int, tuple[str, float]] = {}
+    residues: dict[int, ResidueCoordinate] = {}
     for line in pdb_text.splitlines():
         if not line.startswith("ATOM") or line[12:16].strip() != "CA":
             continue
         try:
             residue_name = line[17:20].strip()
             position = int(line[22:26])
+            x = float(line[30:38])
+            y = float(line[38:46])
+            z = float(line[46:54])
             plddt = float(line[60:66])
         except (ValueError, IndexError) as exc:
             raise AlphaFoldServiceError("AlphaFold PDB contains an invalid ATOM record") from exc
         if residue_name in THREE_TO_ONE:
-            residues[position] = (THREE_TO_ONE[residue_name], plddt)
+            residues[position] = ResidueCoordinate(
+                position=position,
+                amino_acid=THREE_TO_ONE[residue_name],
+                x=x,
+                y=y,
+                z=z,
+                plddt=plddt,
+            )
 
     if not residues:
         raise AlphaFoldServiceError("AlphaFold PDB contains no standard CA atoms")
 
-    labels = [confidence_label(plddt) for _, plddt in residues.values()]
+    coordinates = [residues[position] for position in sorted(residues)]
+    labels = [confidence_label(residue.plddt) for residue in coordinates]
     total = len(labels)
     distribution = ConfidenceDistribution(
         very_high=round(labels.count("very_high") / total, 4),
@@ -93,7 +137,30 @@ def parse_alphafold_pdb(
         low=round(labels.count("low") / total, 4),
         very_low=round(labels.count("very_low") / total, 4),
     )
+    contacts: list[ResidueContact] = []
+    total_contacts = 0
+    contact_threshold = 8.0
+    for index, residue_a in enumerate(coordinates):
+        for residue_b in coordinates[index + 1:]:
+            if abs(residue_a.position - residue_b.position) <= 2:
+                continue
+            distance = dist(
+                (residue_a.x, residue_a.y, residue_a.z),
+                (residue_b.x, residue_b.y, residue_b.z),
+            )
+            if distance <= contact_threshold:
+                total_contacts += 1
+                if len(contacts) < 10_000:
+                    contacts.append(
+                        ResidueContact(
+                            residue_a=residue_a.position,
+                            residue_b=residue_b.position,
+                            distance_angstrom=round(distance, 2),
+                        )
+                    )
+
     mutation_site = None
+    mutation_neighborhood: list[MutationNeighbor] = []
     if mutation:
         match = MUTATION_PATTERN.fullmatch(mutation.strip().upper())
         if not match:
@@ -102,26 +169,51 @@ def parse_alphafold_pdb(
         position = int(position_text)
         if position not in residues:
             raise MutationMismatchError(f"position {position} is absent from the AlphaFold model")
-        observed, plddt = residues[position]
-        if observed != wild_type:
+        mutation_residue = residues[position]
+        if mutation_residue.amino_acid != wild_type:
             raise MutationMismatchError(
-                f"expected {wild_type} at position {position}, found {observed}"
+                f"expected {wild_type} at position {position}, found {mutation_residue.amino_acid}"
             )
         mutation_site = MutationSiteAnalysis(
             wild_type=wild_type,
             position=position,
             mutant=mutant,
-            plddt=plddt,
-            confidence=confidence_label(plddt),
+            plddt=mutation_residue.plddt,
+            confidence=confidence_label(mutation_residue.plddt),
         )
+        for residue in coordinates:
+            if residue.position == position:
+                continue
+            distance = dist(
+                (mutation_residue.x, mutation_residue.y, mutation_residue.z),
+                (residue.x, residue.y, residue.z),
+            )
+            if distance <= contact_threshold:
+                mutation_neighborhood.append(
+                    MutationNeighbor(
+                        position=residue.position,
+                        amino_acid=residue.amino_acid,
+                        distance_angstrom=round(distance, 2),
+                        plddt=residue.plddt,
+                    )
+                )
+        mutation_neighborhood.sort(key=lambda item: (item.distance_angstrom, item.position))
 
     return AlphaFoldAnalysis(
         accession=accession,
         structure_url=structure_url,
         residue_count=total,
-        mean_plddt=round(mean(plddt for _, plddt in residues.values()), 2),
+        mean_plddt=round(mean(residue.plddt for residue in coordinates), 2),
         confidence_distribution=distribution,
         mutation_site=mutation_site,
+        mutation_neighborhood=mutation_neighborhood,
+        contact_map=ContactMap(
+            threshold_angstrom=contact_threshold,
+            total_contacts=total_contacts,
+            truncated=total_contacts > len(contacts),
+            contacts=contacts,
+        ),
+        coordinates=coordinates,
     )
 
 
@@ -174,4 +266,3 @@ class AlphaFoldClient:
         analysis.entry_id = metadata.get("entryId")
         analysis.model_version = metadata.get("latestVersion")
         return analysis
-
