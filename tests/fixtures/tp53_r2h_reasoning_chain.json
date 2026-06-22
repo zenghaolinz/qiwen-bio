@@ -1,0 +1,83 @@
+{
+  "input": {
+    "identifier": "TP53",
+    "organism_id": 9606,
+    "mutation": "R2H"
+  },
+  "mutation_parse": {
+    "raw": "R2H",
+    "normalized": "R2H",
+    "wild_type": "R",
+    "position": 2,
+    "mutant": "H",
+    "status": "parsed",
+    "warnings": []
+  },
+  "chain": {
+    "chain_type": "mutation_impact",
+    "gene": "TP53",
+    "mutation": "R2H",
+    "missing_layers": [],
+    "summary": "Mutation-impact reasoning chain for TP53 R2H: connects the mutation to structural context, function, pathway, and phenotype literature evidence.",
+    "steps": [
+      {
+        "step_id": "mutation",
+        "title": "Mutation and structural context",
+        "available": true,
+        "confidence": "insufficient",
+        "evidence_facts_count": 4,
+        "has_hypothesis": false,
+        "evidence_sources_count": 4
+      },
+      {
+        "step_id": "structure",
+        "title": "Predicted structure",
+        "available": true,
+        "confidence": "medium",
+        "evidence_facts_count": 3,
+        "has_hypothesis": false,
+        "evidence_sources_count": 1
+      },
+      {
+        "step_id": "function",
+        "title": "Function and domain annotation",
+        "available": true,
+        "confidence": "medium",
+        "evidence_facts_count": 3,
+        "has_hypothesis": false,
+        "evidence_sources_count": 2
+      },
+      {
+        "step_id": "pathway",
+        "title": "Pathway and interaction context",
+        "available": true,
+        "confidence": "medium",
+        "evidence_facts_count": 3,
+        "has_hypothesis": false,
+        "evidence_sources_count": 3
+      },
+      {
+        "step_id": "phenotype",
+        "title": "Phenotype literature evidence",
+        "available": true,
+        "confidence": "medium",
+        "evidence_facts_count": 2,
+        "has_hypothesis": true,
+        "evidence_sources_count": 1
+      }
+    ]
+  },
+  "warnings": [],
+  "report_section_present": {
+    "coverage": true,
+    "structure": true,
+    "domains": true,
+    "kegg": true,
+    "cellular_processes": true,
+    "graph": true,
+    "literature": true,
+    "phenotype_literature": true,
+    "reasoning_chain": true,
+    "interpretation_boundary": true
+  }
+}
