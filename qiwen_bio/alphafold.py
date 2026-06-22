@@ -87,13 +87,17 @@ class AlphaFoldAnalysis(BaseModel):
 
 
 def confidence_label(plddt: float) -> str:
-    if plddt >= 90:
-        return "very_high"
-    if plddt >= 70:
-        return "confident"
-    if plddt >= 50:
-        return "low"
-    return "very_low"
+    """Return the AlphaFold pLDDT confidence band for a residue.
+
+    Delegates to :func:`qiwen_bio.structure_features.plddt_confidence_band`
+    (the single source of truth for the band vocabulary). Returns one of
+    ``very_high``/``confident``/``low``/``very_low``. ``None`` is handled by
+    the canonical function (returns ``unavailable``) but this public entry
+    point assumes a concrete pLDDT value.
+    """
+    from qiwen_bio.structure_features import plddt_confidence_band
+
+    return plddt_confidence_band(plddt)
 
 
 def parse_alphafold_pdb(
