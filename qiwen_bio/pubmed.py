@@ -1,5 +1,6 @@
 import re
 from typing import Any
+from xml.etree import ElementTree
 
 import httpx
 from pydantic import BaseModel
@@ -20,6 +21,8 @@ class PubMedArticle(BaseModel):
     published: str
     doi: str | None
     url: str
+    abstract: str | None = None
+    abstract_sections: list[tuple[str | None, str]] = []
 
 
 class LiteratureEvidence(BaseModel):
@@ -69,6 +72,50 @@ def _parse_article(record: dict[str, Any]) -> PubMedArticle:
         doi=doi,
         url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
     )
+
+
+def _parse_efetch_xml(
+    text: str,
+) -> dict[str, tuple[str | None, list[tuple[str | None, str]]]]:
+    """Parse a PubMed efetch XML set into ``{pmid: (abstract, sections)}``.
+
+    The abstract is the concatenation of every ``AbstractText`` child (in
+    document order) joined by single spaces. Each section is a
+    ``(label, text)`` tuple where ``label`` is the ``Label`` attribute or
+    ``None``. Malformed XML or a missing Abstract element yields no entry; the
+    caller treats a missing PMID as "no abstract available".
+    """
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return {}
+    result: dict[str, tuple[str | None, list[tuple[str | None, str]]]] = {}
+    for article in root.findall(".//PubmedArticle"):
+        pmid_el = article.find(".//PMID")
+        if pmid_el is None or not (pmid_el.text or "").strip():
+            continue
+        pmid = pmid_el.text.strip()
+        sections: list[tuple[str | None, str]] = []
+        for abstract_text in article.findall(".//Abstract/AbstractText"):
+            label = abstract_text.get("Label")
+            # ElementTree joins nested markup tails poorly, so reassemble all
+            # text descendants to recover the full visible text.
+            parts = [abstract_text.text or ""]
+            for descendant in abstract_text.iter():
+                if descendant is abstract_text:
+                    continue
+                if descendant.text:
+                    parts.append(descendant.text)
+                if descendant.tail:
+                    parts.append(descendant.tail)
+            text_value = " ".join(part for part in parts if part).strip()
+            text_value = re.sub(r"\s+", " ", text_value)
+            if text_value:
+                sections.append((label, text_value))
+        abstract = " ".join(section_text for _, section_text in sections).strip()
+        abstract = re.sub(r"\s+", " ", abstract) or None
+        result[pmid] = (abstract, sections)
+    return result
 
 
 class PubMedClient:
@@ -130,6 +177,66 @@ class PubMedClient:
             query=query,
             articles=articles,
         )
+
+    def search_with_abstracts(
+        self,
+        protein: str,
+        context_terms: list[str] | None = None,
+        limit: int = 5,
+    ) -> LiteratureEvidence:
+        """Run the same esearch+esummary path as ``search`` and enrich each
+        article with its abstract via efetch (retmode=xml).
+
+        Abstracts are parsed at the abstract-metadata boundary only. The
+        structured ``AbstractText`` sections (with their ``Label`` attribute)
+        are preserved so downstream layers can cite the exact excerpt. Records
+        that have no abstract keep ``abstract=None`` and an empty section list.
+        """
+        evidence = self.search(protein, context_terms=context_terms, limit=limit)
+        if not evidence.articles:
+            return evidence
+        pmids = [article.pmid for article in evidence.articles]
+        abstracts = self._fetch_abstracts(pmids)
+        enriched = [
+            article.model_copy(
+                update={
+                    "abstract": abstracts[article.pmid][0],
+                    "abstract_sections": abstracts[article.pmid][1],
+                }
+            )
+            for article in evidence.articles
+        ]
+        return LiteratureEvidence(
+            protein=evidence.protein,
+            context_terms=evidence.context_terms,
+            query=evidence.query,
+            articles=enriched,
+        )
+
+    def _fetch_abstracts(self, pmids: list[str]) -> dict[str, tuple[str | None, list[tuple[str | None, str]]]]:
+        if not pmids:
+            return {}
+        try:
+            with httpx.Client(
+                base_url=self.base_url,
+                headers={"Accept": "application/xml", "User-Agent": "QiwenBio/0.5"},
+                timeout=self.timeout,
+                transport=self.transport,
+                follow_redirects=True,
+            ) as client:
+                response = client.get(
+                    "/efetch.fcgi",
+                    params={
+                        "db": "pubmed",
+                        "id": ",".join(pmids),
+                        "retmode": "xml",
+                        "tool": "qiwen_bio",
+                    },
+                )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise PubMedServiceError(f"PubMed efetch failed: {exc}") from exc
+        return _parse_efetch_xml(response.text)
 
     def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         try:
