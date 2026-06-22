@@ -41,6 +41,8 @@ Score: **3 / 5 = 60%**
 
 Structure evidence summary completed; controlled structure-enhanced prediction benchmark not started. The structure layer is an **evidence summary**, not a functional-effect prediction. AlphaFold pLDDT is local model confidence, not pathogenicity or functional-effect confidence. CA contacts within 8 A are geometric proximity, not confirmed biochemical interactions. There is no SaProt, no pocket prediction, no structure-enhanced model, and no LoRA/Adapter in the current branch.
 
+The structure evidence summary now preserves source URLs, distinguishes missing/invalid/unmapped mutation contexts, and avoids functional-effect wording from structure-only evidence. Hypothesis sentences use "candidate site for follow-up functional-impact assessment" language rather than "may affect structure or function", reflecting that domain overlap and predicted-structure context are not functional-effect or pathogenicity evidence.
+
 ## Stage 3: Multiscale Reasoning
 
 Score: **5.5 / 6 = 91.67%**
