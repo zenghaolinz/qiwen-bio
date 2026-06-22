@@ -63,6 +63,37 @@ The current Stage 3 system is a **deterministic evidence-chain synthesis** layer
 
 There is no LoRA / Adapter fine-tuning and no SaProt structure-aware embedding in the current branch.
 
+### Mutation-token interface policy
+
+All mutation parsing routes through a single canonical parser,
+`qiwen_bio.mutation.parse_mutation()`, which enforces the 20-canonical-amino-
+acid alphabet and accepts both `R175H` and the HGVS short protein form
+`p.R175H` (normalized to `R175H`). The request-model `Field(pattern=...)`
+strings are not duplicated: `models.py` imports the
+`MUTATION_TOKEN_PATTERN` constant from `qiwen_bio.mutation`, so the model
+boundary and the parser cannot drift apart.
+
+Two interface behaviours coexist **by design**, not by parser inconsistency:
+
+1. **Synthesis / reasoning interfaces** (`ReasoningChainRequest`,
+   `ComprehensiveReportRequest`, `AnalysisRequest`,
+   `UniProtAnalysisRequest`) accept any string as `mutation` and do not 422 on
+   a malformed token. A malformed or wild-type-mismatched mutation is
+   surfaced through the evidence chain as an `invalid` / `unavailable`
+   mutation step, and downstream impact hypotheses are suppressed. This is
+   graceful degradation so a user still receives a usable report.
+
+2. **Direct structure / domain interfaces** (`AlphaFoldAnalysisRequest`,
+   `InterProAnnotationRequest`) apply the strict `MUTATION_TOKEN_PATTERN` at
+   the request-model boundary and return HTTP 422 for an invalid mutation
+   token (e.g. `Z175H`, where `Z` is not an amino acid). These are direct
+   single-purpose annotation requests, so rejecting bad input early is more
+   appropriate than returning a partial result.
+
+Both behaviours use the same canonical alphabet; the difference is whether
+the endpoint degrades gracefully or rejects early. Parser-consistency tests
+in `tests/test_api.py` pin both behaviours.
+
 ## Stage 4: Experimental and Imaging Extensions
 
 Score: **0 / 6 = 0%**

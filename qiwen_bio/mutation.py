@@ -29,8 +29,22 @@ AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWY")
 # as Z, B, X, J, U, O that are not one of the 20 standard residues, so a
 # malformed or non-biological token never becomes a "parsed" mutation.
 _AA = r"[ACDEFGHIKLMNPQRSTVWY]"
+
+# Public regex string for Pydantic request-model Field(pattern=...). It lists
+# both letter cases explicitly because Pydantic applies the pattern without
+# the re.IGNORECASE flag. This is the single source of truth for the mutation
+# token format; request models must import it instead of re-typing the regex,
+# so the model boundary and the parser cannot drift apart.
+MUTATION_TOKEN_PATTERN = (
+    r"^(?:p\.)?"
+    r"[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]"
+    r"\d+"
+    r"[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$"
+)
+
 # Accept the bare form (R175H) and the HGVS short protein form (p.R175H).
-# The optional "p." prefix is stripped on normalization.
+# The optional "p." prefix is stripped on normalization. Compiled with
+# IGNORECASE so lower-case input is accepted and normalized by .upper().
 _MUTATION_PATTERN = re.compile(rf"^(?:p\.)?({_AA})(\d+)({_AA})$", re.IGNORECASE)
 
 

@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from qiwen_bio.mutation import MUTATION_TOKEN_PATTERN
+
 
 AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWY")
 
@@ -70,9 +72,8 @@ class AlphaFoldAnalysisRequest(BaseModel):
     mutation: str | None = Field(
         default=None,
         max_length=30,
-        # Mirror the canonical parser in qiwen_bio.mutation: 20 canonical
-        # amino acids, optional HGVS short protein prefix "p.".
-        pattern=r"^(?:p\.)?[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+        # Single source of truth: qiwen_bio.mutation.MUTATION_TOKEN_PATTERN.
+        pattern=MUTATION_TOKEN_PATTERN,
     )
 
 
@@ -116,9 +117,8 @@ class InterProAnnotationRequest(BaseModel):
     mutation: str | None = Field(
         default=None,
         max_length=30,
-        # Mirror the canonical parser in qiwen_bio.mutation: 20 canonical
-        # amino acids, optional HGVS short protein prefix "p.".
-        pattern=r"^(?:p\.)?[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+        # Single source of truth: qiwen_bio.mutation.MUTATION_TOKEN_PATTERN.
+        pattern=MUTATION_TOKEN_PATTERN,
     )
 
 
