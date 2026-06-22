@@ -174,10 +174,10 @@ def build_mutation_step(
     hypothesis: str | None = None
     if matches and has_overlap and structure and structure.mutation_site:
         hypothesis = (
-            f"假设：因为 {wild_type}{position}{mutant} 位于结构域 "
-            f"{', '.join(domain_overlap_names)} 内，该突变可能影响该结构域的局部结构或功能。"
-            f"这是基于坐标重叠和模型置信度的假设，不是功能影响或致病性结论；"
-            f"需实验验证。"
+            f"假设：该突变位点 {wild_type}{position}{mutant} 位于已注释结构域 "
+            f"{', '.join(domain_overlap_names)} 内，因此可作为后续功能影响评估的候选位点。"
+            f"该判断仅基于坐标重叠和预测结构上下文，不代表结构扰动、稳定性变化、功能改变或致病性结论；"
+            f"需要文献证据或实验进一步验证。"
         )
 
     confidence: StepConfidence = "low"
@@ -239,7 +239,7 @@ def build_structure_step(summary: StructureFeatureSummary) -> ChainStep:
         title="Predicted structure",
         evidence_facts=list(summary.evidence_facts),
         hypothesis=None,
-        evidence_sources=[summary.source],
+        evidence_sources=[summary.source_url] if summary.source_url else [summary.source],
         confidence=confidence,
         uncertainty=uncertainty,
         available=True,
@@ -279,8 +279,9 @@ def build_function_step(
     ):
         overlap_names = ", ".join(entry.accession for entry in domains.mutation_overlaps)
         hypothesis = (
-            f"假设：结合结构域 {overlap_names} 的坐标重叠，该突变可能影响蛋白功能。"
-            f"这是基于注释重叠的假设，不是功能丧失或获得结论；需实验验证。"
+            f"候选解释：该突变位点与功能注释结构域 {overlap_names} 存在坐标重叠，"
+            f"因此可优先纳入功能影响评估。该判断不是功能改变结论，"
+            f"需要文献证据或实验进一步验证。"
         )
 
     confidence: StepConfidence = "medium" if annotation.functions else "low"

@@ -213,10 +213,14 @@ def test_matching_wild_type_enables_function_and_pathway_hypotheses() -> None:
 
     mutation_step = chain.steps[0]
     assert mutation_step.hypothesis is not None
-    assert "可能影响" in mutation_step.hypothesis
+    # Conservative wording: candidate site for follow-up, not "可能影响".
+    assert "候选" in mutation_step.hypothesis or "后续功能影响评估" in mutation_step.hypothesis
+    assert "可能影响局部结构或功能" not in mutation_step.hypothesis
+    assert "可能影响蛋白功能" not in mutation_step.hypothesis
     function_step = chain.steps[2]
     assert function_step.hypothesis is not None
-    assert "可能" in function_step.hypothesis
+    assert "候选" in function_step.hypothesis or "功能影响评估" in function_step.hypothesis
+    assert "可能影响蛋白功能" not in function_step.hypothesis
     pathway_step = chain.steps[3]
     assert pathway_step.hypothesis is not None
     assert "可能" in pathway_step.hypothesis

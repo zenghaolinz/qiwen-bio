@@ -27,7 +27,7 @@ def test_export_record_has_all_required_fields() -> None:
         "accession", "sequence_length", "mutation", "mean_plddt",
         "mutation_site_plddt", "mutation_confidence_band",
         "contact_count_8a", "neighbor_count_8a", "domain_overlap",
-        "overlapping_domains", "label", "source",
+        "overlapping_domains", "label", "source", "source_url",
     }
     assert required.issubset(record.keys())
     assert record["accession"] == "P04637"
@@ -41,6 +41,7 @@ def test_export_record_has_all_required_fields() -> None:
     assert record["domain_overlap"] is True
     assert record["label"] is None
     assert record["source"] == "alphafold_predicted"
+    assert record["source_url"] == "https://alphafold.ebi.ac.uk/entry/P04637"
 
 
 def test_export_record_label_is_settable() -> None:

@@ -50,6 +50,7 @@ def to_export_record(
         "overlapping_domains": summary.overlapping_domains,
         "label": label,
         "source": summary.structure_source_type,
+        "source_url": summary.source_url,
     }
 
 

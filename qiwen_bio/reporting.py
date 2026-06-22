@@ -116,26 +116,50 @@ def render_phenotype_literature_section(
 
 def render_structure_summary_section(summary: "StructureFeatureSummary") -> str:
     if not summary.has_structure:
-        return (
-            "## Structure evidence summary\n\n"
-            "- No AlphaFold structure is available for this entry.\n"
-            "- Structure layer: missing.\n\n"
-            "> No structural context is available; geometric interpretation is not possible.\n"
-        )
+        lines = [
+            "## Structure evidence summary",
+            "",
+            "- No AlphaFold structure is available for this entry.",
+            "- Structure layer: missing.",
+        ]
+        # Even without a structure, report the mutation context honestly so
+        # an invalid mutation is not mislabelled as "no mutation supplied".
+        if summary.mutation_parse_status == "invalid":
+            lines.append("- Mutation site pLDDT: unavailable (mutation could not be parsed)")
+        elif summary.mutation_parse_status == "not_supplied":
+            lines.append("- Mutation site pLDDT: not applicable (no mutation supplied)")
+        else:
+            lines.append(
+                f"- Mutation site pLDDT: unavailable (no structure to map "
+                f"mutation {summary.mutation!r})"
+            )
+        lines.append("")
+        lines.append("> No structural context is available; geometric interpretation is not possible.")
+        return "\n".join(lines) + "\n"
     lines = [
         "## Structure evidence summary",
         "",
         f"- Structure source: AlphaFold predicted structure ({summary.source})",
-        f"- Mean pLDDT: {summary.mean_plddt:.2f}" if summary.mean_plddt is not None else "- Mean pLDDT: unavailable",
     ]
-    if summary.mutation is not None and summary.mutation_site_plddt is not None:
+    if summary.source_url:
+        lines.append(f"- Structure source URL: {summary.source_url}")
+    lines.append(
+        f"- Mean pLDDT: {summary.mean_plddt:.2f}" if summary.mean_plddt is not None else "- Mean pLDDT: unavailable"
+    )
+    # Distinguish not_supplied / invalid / not_mapped / mapped so an invalid or
+    # unmapped mutation is never misreported as "no mutation supplied".
+    if summary.mutation_parse_status == "mapped" and summary.mutation_site_plddt is not None:
         lines.append(f"- Mutation site pLDDT: {summary.mutation_site_plddt:.2f}")
         lines.append(f"- Mutation confidence band: {summary.mutation_site_confidence_band}")
         if summary.low_confidence_region:
             lines.append("- Low-confidence predicted region: yes (structural interpretation limited)")
         else:
             lines.append("- Low-confidence predicted region: no")
-    else:
+    elif summary.mutation_parse_status == "invalid":
+        lines.append("- Mutation site pLDDT: unavailable (mutation could not be parsed)")
+    elif summary.mutation_parse_status == "not_mapped":
+        lines.append("- Mutation site pLDDT: unavailable (mutation site not mapped in the predicted structure)")
+    else:  # not_supplied
         lines.append("- Mutation site pLDDT: not applicable (no mutation supplied)")
     if summary.domain_overlap is not None:
         lines.append(

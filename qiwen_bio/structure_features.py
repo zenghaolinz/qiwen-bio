@@ -67,9 +67,12 @@ class StructureFeatureSummary(BaseModel):
     """
 
     source: str
+    source_url: str | None = None
     accession: str
     mutation: str | None
     mutation_position: int | None
+    mutation_parse_status: Literal["not_supplied", "invalid", "not_mapped", "mapped"]
+    mutation_status_note: str | None = None
     has_structure: bool
     structure_source_type: StructureSourceType
     mean_plddt: float | None
@@ -138,12 +141,26 @@ def build_structure_feature_summary(
     parsed = parse_mutation(mutation)
     mutation_position = parsed.position if parsed.status == "parsed" else None
 
+    # Distinguish four mutation contexts for honest reporting.
+    if mutation is None or parsed.status == "empty":
+        mutation_parse_status: Literal["not_supplied", "invalid", "not_mapped", "mapped"] = "not_supplied"
+        mutation_status_note = "no mutation supplied"
+    elif parsed.status != "parsed":
+        mutation_parse_status = "invalid"
+        mutation_status_note = "mutation could not be parsed"
+    else:
+        mutation_parse_status = "mapped"  # may be downgraded to not_mapped below
+        mutation_status_note = "mutation site mapped in the predicted structure"
+
     if structure is None:
         return StructureFeatureSummary(
             source="AlphaFold DB",
+            source_url=None,
             accession=annotation.accession,
             mutation=mutation,
             mutation_position=mutation_position,
+            mutation_parse_status=mutation_parse_status,
+            mutation_status_note=mutation_status_note,
             has_structure=False,
             structure_source_type="none",
             mean_plddt=None,
@@ -160,6 +177,11 @@ def build_structure_feature_summary(
         )
 
     site_plddt = structure.mutation_site.plddt if structure.mutation_site else None
+    # A parseable mutation whose site is absent from the predicted structure
+    # is "not_mapped", not "mapped".
+    if mutation_parse_status == "mapped" and site_plddt is None:
+        mutation_parse_status = "not_mapped"
+        mutation_status_note = "mutation site not mapped in the predicted structure"
     band = plddt_confidence_band(site_plddt)
     low_confidence = site_plddt is not None and site_plddt < PLDDT_BANDS["low"]
     neighbors = _format_neighbors(structure)
@@ -196,9 +218,12 @@ def build_structure_feature_summary(
 
     return StructureFeatureSummary(
         source="AlphaFold DB",
+        source_url=structure.structure_url,
         accession=annotation.accession,
         mutation=mutation,
         mutation_position=mutation_position,
+        mutation_parse_status=mutation_parse_status,
+        mutation_status_note=mutation_status_note,
         has_structure=True,
         structure_source_type="alphafold_predicted",
         mean_plddt=structure.mean_plddt,
