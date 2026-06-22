@@ -6,6 +6,7 @@ from qiwen_bio.api import (
     get_alphafold_client,
     get_embedding_service,
     get_interpro_client,
+    get_kegg_client,
     get_pubmed_client,
     get_string_client,
 )
@@ -24,6 +25,7 @@ from tests.test_synthesis import (
     StubStringClient as SynthesisStringClient,
     StubUniProtClient as SynthesisUniProtClient,
     StubInterProClient as SynthesisInterProClient,
+    StubKeggClient as SynthesisKeggClient,
 )
 from qiwen_bio.embedding import EmbeddingCache, EmbeddingService, ModelLoadError
 from tests.test_embedding import FakeProvider
@@ -33,6 +35,12 @@ from qiwen_bio.interpro import (
     DomainLocation,
     InterProNotFoundError,
     InterProServiceError,
+)
+from qiwen_bio.kegg import (
+    KeggNotFoundError,
+    KeggPathway,
+    KeggPathwayAnnotation,
+    KeggServiceError,
 )
 
 
@@ -175,6 +183,7 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
     app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
     app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
     try:
         response = client.post(
             "/api/v1/report/comprehensive",
@@ -188,6 +197,7 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     assert payload["coverage"]["score"] == 100
     assert payload["annotation"]["accession"] == "P04637"
     assert payload["structure"]["mutation_site"]["position"] == 2
+    assert payload["kegg"]["pathways"][0]["pathway_id"] == "hsa04115"
     assert payload["literature"]["articles"][0]["pmid"] == "12345"
     assert payload["report_markdown"].startswith("# Qiwen Bio comprehensive report")
 
@@ -285,6 +295,70 @@ def test_interpro_endpoint_maps_not_found_and_service_errors() -> None:
         try:
             response = client.post(
                 "/api/v1/domains/interpro", json={"accession": "P04637"}
+            )
+        finally:
+            app.dependency_overrides.clear()
+        assert response.status_code == expected_status
+
+
+def _kegg_annotation() -> KeggPathwayAnnotation:
+    return KeggPathwayAnnotation(
+        protein_accession="P04637",
+        gene_ids=["hsa:7157"],
+        pathways=[
+            KeggPathway(
+                pathway_id="hsa04115",
+                name="p53 signaling pathway - Homo sapiens (human)",
+                description="p53 stress response.",
+                classes=["Cellular Processes", "Cell growth and death"],
+                source_url="https://www.kegg.jp/entry/hsa04115",
+            )
+        ],
+        pathway_count=1,
+        linked_pathway_count=1,
+        truncated=False,
+        query_urls=["https://rest.kegg.jp/link/pathway/hsa:7157"],
+    )
+
+
+def test_kegg_endpoint_returns_direct_pathway_records() -> None:
+    class StubKeggClient:
+        def fetch(self, accession: str, limit: int = 20):
+            assert (accession, limit) == ("P04637", 5)
+            return _kegg_annotation()
+
+    app.dependency_overrides[get_kegg_client] = lambda: StubKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/pathways/kegg", json={"accession": "P04637", "limit": 5}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["pathways"][0]["pathway_id"] == "hsa04115"
+    assert response.json()["pathways"][0]["source_url"].endswith("/hsa04115")
+    assert "not evidence" in response.json()["disclaimer"]
+
+
+def test_kegg_endpoint_maps_not_found_and_service_errors() -> None:
+    class FailingKeggClient:
+        def __init__(self, error: Exception) -> None:
+            self.error = error
+
+        def fetch(self, accession: str, limit: int = 20):
+            raise self.error
+
+    for error, expected_status in (
+        (KeggNotFoundError("no pathways"), 404),
+        (KeggServiceError("service unavailable"), 502),
+    ):
+        app.dependency_overrides[get_kegg_client] = lambda error=error: FailingKeggClient(
+            error
+        )
+        try:
+            response = client.post(
+                "/api/v1/pathways/kegg", json={"accession": "P04637"}
             )
         finally:
             app.dependency_overrides.clear()

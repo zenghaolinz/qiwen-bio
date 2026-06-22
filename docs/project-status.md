@@ -6,8 +6,8 @@ Updated: 2026-06-22
 
 Progress is measured against the 24 tasks in the original four-stage proposal. Complete tasks score 1, partial tasks score 0.5, and not-started tasks score 0. The fourth-stage experimental-image work is part of the full vision but optional to the current core bioinformatics platform.
 
-- Full four-stage vision: **13.5 / 24 = 56.25%**
-- Core software scope (stages 1-3): **13.5 / 18 = 75%**
+- Full four-stage vision: **14 / 24 = 58.33%**
+- Core software scope (stages 1-3): **14 / 18 = 77.78%**
 
 These percentages measure delivered scope, not biological correctness or model accuracy.
 
@@ -39,11 +39,11 @@ Score: **2.5 / 5 = 50%**
 
 ## Stage 3: Multiscale Reasoning
 
-Score: **4.5 / 6 = 75%**
+Score: **5 / 6 = 83.33%**
 
 | Proposal task | Status | Evidence / gap |
 | --- | --- | --- |
-| UniProt, GO, KEGG, STRING integration | Partial | UniProt/GO/STRING and direct InterPro/Pfam complete; KEGG remains indirect through STRING enrichment |
+| UniProt, GO, KEGG, STRING integration | Complete | UniProt/GO/STRING, direct InterPro/Pfam, and direct KEGG pathway records are integrated |
 | Local knowledge graph | Complete | Typed interaction/process/pathway graph and visualization |
 | Protein-pathway-phenotype chain | Partial | Protein-to-pathway evidence exists; cellular-state and phenotype reasoning are not implemented |
 | PubMed evidence | Complete | Context retrieval and auditable metadata/citations |
@@ -70,4 +70,4 @@ Accordingly, the trained AMP artifact remains offline and the product continues 
 
 ## Next Priority
 
-Add direct KEGG pathway evidence and distinguish it from STRING enrichment, then build a bounded protein-to-cellular-process layer. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, cellular-state/phenotype evidence, and experimental imaging.
+Build a bounded protein-to-cellular-process evidence layer, then connect supported processes to phenotype literature without asserting causality. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, cellular-state/phenotype evidence, and experimental imaging.

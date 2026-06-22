@@ -21,6 +21,7 @@ from qiwen_bio.models import (
     EmbeddingRequest,
     EvidenceItem,
     InterProAnnotationRequest,
+    KeggPathwayRequest,
     PubMedSearchRequest,
     StringGraphRequest,
     UniProtAnalysisRequest,
@@ -40,6 +41,12 @@ from qiwen_bio.interpro import (
     InterProClient,
     InterProNotFoundError,
     InterProServiceError,
+)
+from qiwen_bio.kegg import (
+    KeggClient,
+    KeggNotFoundError,
+    KeggPathwayAnnotation,
+    KeggServiceError,
 )
 from qiwen_bio.reporting import render_literature_section, render_markdown_report
 from qiwen_bio.stringdb import (
@@ -69,6 +76,7 @@ embedding_service = EmbeddingService(
     EmbeddingCache(Path(__file__).resolve().parent.parent / "data" / "embeddings"),
 )
 interpro_client = InterProClient()
+kegg_client = KeggClient()
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -114,6 +122,10 @@ def get_embedding_service() -> EmbeddingService:
 
 def get_interpro_client() -> InterProClient:
     return interpro_client
+
+
+def get_kegg_client() -> KeggClient:
+    return kegg_client
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -237,6 +249,7 @@ def comprehensive_report(
     string: StringClient = Depends(get_string_client),
     pubmed: PubMedClient = Depends(get_pubmed_client),
     interpro: InterProClient = Depends(get_interpro_client),
+    kegg: KeggClient = Depends(get_kegg_client),
 ) -> ComprehensiveAnalysis:
     try:
         return build_comprehensive_analysis(
@@ -249,6 +262,7 @@ def comprehensive_report(
             string_client=string,
             pubmed_client=pubmed,
             interpro_client=interpro,
+            kegg_client=kegg,
             string_limit=request.interaction_limit,
             required_score=request.required_score,
             literature_limit=request.literature_limit,
@@ -285,4 +299,17 @@ def annotate_domains(
     except InterProNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InterProServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/pathways/kegg", response_model=KeggPathwayAnnotation)
+def annotate_kegg_pathways(
+    request: KeggPathwayRequest,
+    client: KeggClient = Depends(get_kegg_client),
+) -> KeggPathwayAnnotation:
+    try:
+        return client.fetch(request.accession, limit=request.limit)
+    except KeggNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except KeggServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

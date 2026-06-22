@@ -150,6 +150,23 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
 > {result.domains.disclaimer}
 """
         )
+    if result.kegg:
+        pathway_lines = "\n".join(
+            f"- [{pathway.pathway_id}]({pathway.source_url}) {pathway.name}"
+            for pathway in result.kegg.pathways[:12]
+        )
+        sections.append(
+            f"""## Direct KEGG pathway evidence
+
+- KEGG gene IDs: {', '.join(result.kegg.gene_ids)}
+- Returned pathway records: {result.kegg.pathway_count} of {result.kegg.linked_pathway_count} linked
+
+{pathway_lines}
+
+> {result.kegg.disclaimer}
+> KEGG content is retrieved on demand for this report; it is not bundled or redistributed by Qiwen Bio.
+"""
+        )
     if result.graph:
         interactions = sum(edge.type == "interacts_with" for edge in result.graph.edges)
         terms = [node for node in result.graph.nodes if node.type != "protein"]

@@ -14,6 +14,11 @@ from qiwen_bio.interpro import (
     InterProNotFoundError,
     InterProServiceError,
 )
+from qiwen_bio.kegg import (
+    KeggNotFoundError,
+    KeggPathwayAnnotation,
+    KeggServiceError,
+)
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedServiceError
 from qiwen_bio.stringdb import EvidenceGraph, StringNotFoundError, StringServiceError
 from qiwen_bio.uniprot import UniProtAnnotation
@@ -45,6 +50,7 @@ class ComprehensiveAnalysis(BaseModel):
     graph: EvidenceGraph | None
     literature: LiteratureEvidence | None
     domains: DomainAnnotation | None
+    kegg: KeggPathwayAnnotation | None
     coverage: EvidenceCoverage
     warnings: list[str]
     report_markdown: str
@@ -70,6 +76,7 @@ def build_comprehensive_analysis(
     string_client,
     pubmed_client,
     interpro_client,
+    kegg_client,
     string_limit: int = 8,
     required_score: int = 700,
     literature_limit: int = 5,
@@ -115,8 +122,14 @@ def build_comprehensive_analysis(
     except (StringNotFoundError, StringServiceError) as exc:
         warnings.append(f"STRING: {exc}")
 
-    context_terms = []
-    if graph:
+    kegg = None
+    try:
+        kegg = kegg_client.fetch(annotation.accession, limit=20)
+    except (KeggNotFoundError, KeggServiceError) as exc:
+        warnings.append(f"KEGG: {exc}")
+
+    context_terms = [pathway.name for pathway in kegg.pathways[:3]] if kegg else []
+    if not context_terms and graph:
         context_terms = [node.label for node in graph.nodes if node.type != "protein"][:3]
     literature = None
     try:
@@ -131,7 +144,18 @@ def build_comprehensive_analysis(
     interaction_available = bool(
         graph and any(edge.type == "interacts_with" for edge in graph.edges)
     )
-    term_available = bool(graph and any(node.type != "protein" for node in graph.nodes))
+    string_term_available = bool(
+        graph and any(node.type != "protein" for node in graph.nodes)
+    )
+    direct_pathway_available = bool(kegg and kegg.pathways)
+    pathway_available = direct_pathway_available or string_term_available
+    pathway_detail = (
+        f"{kegg.pathway_count} direct KEGG pathway records"
+        if direct_pathway_available
+        else "STRING enrichment fallback (no direct KEGG records)"
+        if string_term_available
+        else "No direct KEGG or STRING pathway/process evidence"
+    )
     literature_available = bool(literature and literature.articles)
     components = [
         _component("sequence", True, 10, f"{analysis.features.length} canonical residues parsed"),
@@ -144,7 +168,7 @@ def build_comprehensive_analysis(
         ),
         _component("structure", structure is not None, 20, "AlphaFold pLDDT and CA geometry"),
         _component("interactions", interaction_available, 15, "STRING scored interaction edges"),
-        _component("pathways", term_available, 15, "STRING process/pathway enrichment terms"),
+        _component("pathways", pathway_available, 15, pathway_detail),
         _component("literature", literature_available, 15, "Context-bound PubMed records"),
     ]
     score = sum(item.points for item in components)
@@ -163,6 +187,7 @@ def build_comprehensive_analysis(
         graph=graph,
         literature=literature,
         domains=domains,
+        kegg=kegg,
         coverage=coverage,
         warnings=warnings,
         report_markdown="",

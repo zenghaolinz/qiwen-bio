@@ -116,3 +116,8 @@ class InterProAnnotationRequest(BaseModel):
         max_length=30,
         pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
     )
+
+
+class KeggPathwayRequest(BaseModel):
+    accession: str = Field(min_length=6, max_length=10, pattern=r"^[A-Za-z0-9]+$")
+    limit: int = Field(default=20, ge=1, le=50)

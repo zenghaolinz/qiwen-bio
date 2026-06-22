@@ -8,6 +8,11 @@ from qiwen_bio.interpro import (
     DomainLocation,
     InterProServiceError,
 )
+from qiwen_bio.kegg import (
+    KeggPathway,
+    KeggPathwayAnnotation,
+    KeggServiceError,
+)
 from qiwen_bio.synthesis import build_comprehensive_analysis
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_alphafold import PDB_TEXT
@@ -31,7 +36,11 @@ class StubStringClient:
 
 
 class StubPubMedClient:
+    def __init__(self) -> None:
+        self.context_terms: list[str] = []
+
     def search(self, protein: str, context_terms: list[str], limit: int):
+        self.context_terms = context_terms
         return LiteratureEvidence(
             protein=protein,
             context_terms=context_terms,
@@ -76,7 +85,30 @@ class StubInterProClient:
         )
 
 
+class StubKeggClient:
+    def fetch(self, accession: str, limit: int = 20):
+        assert accession == "P04637"
+        return KeggPathwayAnnotation(
+            protein_accession=accession,
+            gene_ids=["hsa:7157"],
+            pathways=[
+                KeggPathway(
+                    pathway_id="hsa04115",
+                    name="p53 signaling pathway - Homo sapiens (human)",
+                    description="p53 stress response.",
+                    classes=["Cellular Processes", "Cell growth and death"],
+                    source_url="https://www.kegg.jp/entry/hsa04115",
+                )
+            ],
+            pathway_count=1,
+            linked_pathway_count=1,
+            truncated=False,
+            query_urls=["https://rest.kegg.jp/link/pathway/hsa:7157"],
+        )
+
+
 def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> None:
+    pubmed = StubPubMedClient()
     result = build_comprehensive_analysis(
         identifier="TP53",
         organism_id=9606,
@@ -85,8 +117,9 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
         uniprot_client=StubUniProtClient(),
         alphafold_client=StubAlphaFoldClient(),
         string_client=StubStringClient(),
-        pubmed_client=StubPubMedClient(),
+        pubmed_client=pubmed,
         interpro_client=StubInterProClient(),
+        kegg_client=StubKeggClient(),
     )
 
     assert result.coverage.score == 100
@@ -96,12 +129,20 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
     assert result.graph.seed == "TP53"
     assert result.literature.articles[0].pmid == "12345"
     assert result.domains.mutation_overlaps[0].accession == "PF00870"
+    assert result.kegg.pathways[0].pathway_id == "hsa04115"
+    assert pubmed.context_terms[0].startswith("p53 signaling pathway")
     assert any(component.name == "domains" for component in result.coverage.components)
     assert "## Structure evidence" in result.report_markdown
     assert "## Interaction and pathway evidence" in result.report_markdown
     assert "[PMID 12345]" in result.report_markdown
     assert "## Domain evidence" in result.report_markdown
     assert "overlaps mutation position 2" in result.report_markdown
+    assert "## Direct KEGG pathway evidence" in result.report_markdown
+    assert "Returned pathway records: 1 of 1 linked" in result.report_markdown
+    pathway_component = next(
+        component for component in result.coverage.components if component.name == "pathways"
+    )
+    assert "direct KEGG" in pathway_component.detail
 
 
 class FailingAlphaFoldClient:
@@ -124,6 +165,11 @@ class FailingInterProClient:
         raise InterProServiceError("domains unavailable")
 
 
+class FailingKeggClient:
+    def fetch(self, accession: str, limit: int = 20):
+        raise KeggServiceError("pathways unavailable")
+
+
 def test_optional_service_failures_return_partial_report_with_warnings() -> None:
     result = build_comprehensive_analysis(
         identifier="TP53",
@@ -135,6 +181,7 @@ def test_optional_service_failures_return_partial_report_with_warnings() -> None
         string_client=FailingStringClient(),
         pubmed_client=FailingPubMedClient(),
         interpro_client=FailingInterProClient(),
+        kegg_client=FailingKeggClient(),
     )
 
     assert result.coverage.score == 25
@@ -143,5 +190,28 @@ def test_optional_service_failures_return_partial_report_with_warnings() -> None
     assert result.graph is None
     assert result.literature is None
     assert result.domains is None
-    assert len(result.warnings) == 4
+    assert result.kegg is None
+    assert len(result.warnings) == 5
     assert "## Unavailable evidence layers" in result.report_markdown
+
+
+def test_kegg_failure_uses_explicit_string_enrichment_fallback() -> None:
+    result = build_comprehensive_analysis(
+        identifier="TP53",
+        organism_id=9606,
+        mutation="R2H",
+        pipeline=AnalysisPipeline(),
+        uniprot_client=StubUniProtClient(),
+        alphafold_client=StubAlphaFoldClient(),
+        string_client=StubStringClient(),
+        pubmed_client=StubPubMedClient(),
+        interpro_client=StubInterProClient(),
+        kegg_client=FailingKeggClient(),
+    )
+
+    pathway_component = next(
+        component for component in result.coverage.components if component.name == "pathways"
+    )
+    assert pathway_component.available is True
+    assert "STRING enrichment fallback" in pathway_component.detail
+    assert any(warning.startswith("KEGG:") for warning in result.warnings)
