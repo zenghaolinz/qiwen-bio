@@ -35,6 +35,10 @@ from qiwen_bio.models import AnalysisResponse
 from qiwen_bio.mutation import parse_mutation, wild_type_matches_sequence
 from qiwen_bio.phenotype_literature import PhenotypeLiteratureEvidence
 from qiwen_bio.stringdb import EvidenceGraph
+from qiwen_bio.structure_features import (
+    StructureFeatureSummary,
+    build_structure_feature_summary,
+)
 from qiwen_bio.uniprot import UniProtAnnotation
 
 
@@ -58,6 +62,7 @@ class ReasoningChain(BaseModel):
     gene: str
     mutation: str | None
     steps: list[ChainStep]
+    structure_summary: StructureFeatureSummary | None = None
     missing_layers: list[str]
     summary: str
     boundary: str = (
@@ -69,6 +74,17 @@ class ReasoningChain(BaseModel):
 
 
 def _confidence_from_plddt(plddt: float | None) -> StepConfidence:
+    """Map a pLDDT value to a reasoning-STEP confidence level.
+
+    This is intentionally a DIFFERENT vocabulary from the AlphaFold pLDDT band
+    (``very_high``/``confident``/``low``/``very_low`` in
+    :func:`qiwen_bio.structure_features.plddt_confidence_band`). Here the
+    output is the chain-step confidence ``high``/``medium``/``low``/
+    ``insufficient``, which describes how much weight a reasoning step can
+    place on the structural evidence — not the AlphaFold model band itself.
+    The numeric cutoffs coincide but the semantics are distinct, so this is
+    not a duplicate of the band function.
+    """
     if plddt is None:
         return "insufficient"
     if plddt >= 90:
@@ -185,40 +201,47 @@ def build_mutation_step(
     )
 
 
-def build_structure_step(
-    structure: AlphaFoldAnalysis | None, mutation: str | None
-) -> ChainStep:
-    if structure is None:
+def build_structure_step(summary: StructureFeatureSummary) -> ChainStep:
+    """Build the structure step from a unified StructureFeatureSummary.
+
+    The step reports structural facts only; it never emits a functional-impact
+    hypothesis (structure is geometric, not functional). When the mutation site
+    lies in a low-confidence predicted region the uncertainty clause is
+    strengthened to flag that structural interpretation is limited.
+    """
+    if not summary.has_structure:
         return ChainStep(
             step_id="structure",
             title="Predicted structure",
-            evidence_facts=["No AlphaFold structure is available for this entry."],
+            evidence_facts=list(summary.evidence_facts),
             evidence_sources=[],
             confidence="insufficient",
             uncertainty="Structure layer unavailable; geometric context cannot be assessed.",
             available=False,
         )
-    facts = [
-        f"AlphaFold model: {structure.residue_count} residues, mean pLDDT {structure.mean_plddt:.2f}.",
-        f"Non-local CA contacts (8 A threshold): {structure.contact_map.total_contacts}.",
-    ]
-    if mutation and structure.mutation_site:
-        site = structure.mutation_site
-        facts.append(
-            f"Mutation site {site.wild_type}{site.position}{site.mutant}: pLDDT {site.plddt:.2f} "
-            f"({site.confidence}), {len(structure.mutation_neighborhood)} neighbours within 8 A."
+    # Prefer the mutation-site pLDDT for step confidence when available,
+    # otherwise fall back to the whole-model mean.
+    plddt_for_confidence = summary.mutation_site_plddt or summary.mean_plddt
+    confidence = _confidence_from_plddt(plddt_for_confidence)
+    if summary.low_confidence_region:
+        uncertainty = (
+            "The mutation site lies in a low-confidence predicted region; structural "
+            "interpretation is limited. pLDDT and CA proximity describe model confidence "
+            "and geometry, not pathogenicity, stability, or functional effect."
+        )
+    else:
+        uncertainty = (
+            "pLDDT and CA proximity describe model confidence and geometry, not "
+            "pathogenicity, stability, or functional effect."
         )
     return ChainStep(
         step_id="structure",
         title="Predicted structure",
-        evidence_facts=facts,
+        evidence_facts=list(summary.evidence_facts),
         hypothesis=None,
-        evidence_sources=[structure.structure_url],
-        confidence=_confidence_from_plddt(structure.mean_plddt),
-        uncertainty=(
-            "pLDDT and CA proximity describe model confidence and geometry, not "
-            "pathogenicity, stability, or functional effect."
-        ),
+        evidence_sources=[summary.source],
+        confidence=confidence,
+        uncertainty=uncertainty,
         available=True,
     )
 
@@ -413,7 +436,13 @@ def build_reasoning_chain(
         mutation_step = build_mutation_step(annotation, structure, domains, mutation)
         steps.append(mutation_step)
 
-    structure_step = build_structure_step(structure, mutation)
+    structure_summary = build_structure_feature_summary(
+        annotation=annotation,
+        structure=structure,
+        domains=domains,
+        mutation=mutation,
+    )
+    structure_step = build_structure_step(structure_summary)
     if not structure_step.available:
         missing_layers.append("structure")
     steps.append(structure_step)
@@ -452,6 +481,7 @@ def build_reasoning_chain(
         gene=gene,
         mutation=mutation if chain_type == "mutation_impact" else None,
         steps=steps,
+        structure_summary=structure_summary,
         missing_layers=missing_layers,
         summary=summary,
     )

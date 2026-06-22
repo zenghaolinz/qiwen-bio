@@ -33,8 +33,8 @@
         "step_id": "structure",
         "title": "Predicted structure",
         "available": true,
-        "confidence": "medium",
-        "evidence_facts_count": 3,
+        "confidence": "low",
+        "evidence_facts_count": 5,
         "has_hypothesis": false,
         "evidence_sources_count": 1
       },
@@ -71,6 +71,7 @@
   "report_section_present": {
     "coverage": true,
     "structure": true,
+    "structure_summary": true,
     "domains": true,
     "kegg": true,
     "cellular_processes": true,

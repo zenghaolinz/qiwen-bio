@@ -79,6 +79,7 @@ def test_tp53_r2h_reasoning_chain_matches_snapshot() -> None:
     assert fixture["report_section_present"] == {
         "coverage": "## Evidence coverage" in result.report_markdown,
         "structure": "## Structure evidence" in result.report_markdown,
+        "structure_summary": "## Structure evidence summary" in result.report_markdown,
         "domains": "## Domain evidence" in result.report_markdown,
         "kegg": "## Direct KEGG pathway evidence" in result.report_markdown,
         "cellular_processes": "## Cellular-process evidence" in result.report_markdown,

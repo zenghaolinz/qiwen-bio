@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from qiwen_bio.phenotype_literature import PhenotypeLiteratureEvidence
     from qiwen_bio.pubmed import LiteratureEvidence
     from qiwen_bio.reasoning_chain import ReasoningChain
+    from qiwen_bio.structure_features import StructureFeatureSummary
     from qiwen_bio.synthesis import ComprehensiveAnalysis
 
 
@@ -113,6 +114,42 @@ def render_phenotype_literature_section(
 """
 
 
+def render_structure_summary_section(summary: "StructureFeatureSummary") -> str:
+    if not summary.has_structure:
+        return (
+            "## Structure evidence summary\n\n"
+            "- No AlphaFold structure is available for this entry.\n"
+            "- Structure layer: missing.\n\n"
+            "> No structural context is available; geometric interpretation is not possible.\n"
+        )
+    lines = [
+        "## Structure evidence summary",
+        "",
+        f"- Structure source: AlphaFold predicted structure ({summary.source})",
+        f"- Mean pLDDT: {summary.mean_plddt:.2f}" if summary.mean_plddt is not None else "- Mean pLDDT: unavailable",
+    ]
+    if summary.mutation is not None and summary.mutation_site_plddt is not None:
+        lines.append(f"- Mutation site pLDDT: {summary.mutation_site_plddt:.2f}")
+        lines.append(f"- Mutation confidence band: {summary.mutation_site_confidence_band}")
+        if summary.low_confidence_region:
+            lines.append("- Low-confidence predicted region: yes (structural interpretation limited)")
+        else:
+            lines.append("- Low-confidence predicted region: no")
+    else:
+        lines.append("- Mutation site pLDDT: not applicable (no mutation supplied)")
+    if summary.domain_overlap is not None:
+        lines.append(
+            f"- Domain overlap: {'yes' if summary.domain_overlap else 'no'}"
+            + (f" ({', '.join(summary.overlapping_domains)})" if summary.overlapping_domains else "")
+        )
+    if summary.contact_count_8a is not None:
+        lines.append(f"- 8 A CA contacts: {summary.contact_count_8a}")
+    if summary.neighbor_count_8a is not None:
+        lines.append(f"- 8 A CA neighbors: {summary.neighbor_count_8a}")
+    limits = "\n".join(f"  - {limit}" for limit in summary.interpretation_limits)
+    return f"{chr(10).join(lines)}\n\nInterpretation limits:\n{limits}\n\n> AlphaFold pLDDT is local model confidence, not pathogenicity or functional-effect confidence. CA contacts are geometric proximity, not confirmed biochemical interactions.\n"
+
+
 def render_reasoning_chain_section(chain: "ReasoningChain") -> str:
     step_blocks = []
     for step in chain.steps:
@@ -200,6 +237,10 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
 {mutation_line}
 > pLDDT and CA proximity do not predict pathogenicity, stability, or functional effect.
 """
+        )
+    if result.reasoning_chain is not None and result.reasoning_chain.structure_summary is not None:
+        sections.append(
+            render_structure_summary_section(result.reasoning_chain.structure_summary)
         )
     if result.domains:
         domain_lines = []
