@@ -6,8 +6,8 @@ Updated: 2026-06-22
 
 Progress is measured against the 24 tasks in the original four-stage proposal. Complete tasks score 1, partial tasks score 0.5, and not-started tasks score 0. The fourth-stage experimental-image work is part of the full vision but optional to the current core bioinformatics platform.
 
-- Full four-stage vision: **15 / 24 = 62.5%**
-- Core software scope (stages 1-3): **15 / 18 = 83.33%**
+- Full four-stage vision: **15.5 / 24 = 64.58%**
+- Core software scope (stages 1-3): **15.5 / 18 = 86.11%**
 
 These percentages measure delivered scope, not biological correctness or model accuracy.
 
@@ -27,15 +27,19 @@ Score: **6.5 / 7 = 92.86%**
 
 ## Stage 2: Structure-Enhanced Version
 
-Score: **2.5 / 5 = 50%**
+Score: **3 / 5 = 60%**
 
 | Proposal task | Status | Evidence / gap |
 | --- | --- | --- |
 | Fetch AlphaFold structure | Complete | Dynamic AlphaFold model/PDB retrieval |
-| Extract structural features | Partial | pLDDT, CA contacts, mutation neighborhood complete; secondary structure and pockets missing |
+| Extract structural features | Partial | Unified StructureFeatureSummary aggregates pLDDT, CA contacts, mutation neighborhood, and domain overlap; pLDDT band logic is single-sourced. Secondary structure and pockets missing |
 | Structure visualization | Complete | Dependency-free interactive backbone/contact views |
 | SaProt structure embedding | Not started | Foldseek/SaProt pipeline absent |
-| Compare sequence and structure models | Not started | No controlled benchmark |
+| Compare sequence and structure models | Not started | Structure-feature export (`python -m qiwen_bio.structure_cli`) prepares JSONL records for a future controlled benchmark; no benchmark or trained structure-enhanced model yet |
+
+### Structure evidence scope
+
+Structure evidence summary completed; controlled structure-enhanced prediction benchmark not started. The structure layer is an **evidence summary**, not a functional-effect prediction. AlphaFold pLDDT is local model confidence, not pathogenicity or functional-effect confidence. CA contacts within 8 A are geometric proximity, not confirmed biochemical interactions. There is no SaProt, no pocket prediction, no structure-enhanced model, and no LoRA/Adapter in the current branch.
 
 ## Stage 3: Multiscale Reasoning
 
