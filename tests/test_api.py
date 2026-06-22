@@ -542,3 +542,165 @@ def test_reasoning_chain_endpoint_malformed_mutation_returns_explainable_chain()
         "invalid" in f.lower() or "malformed" in f.lower()
         for f in mutation_step["evidence_facts"]
     )
+
+
+# ---------------------------------------------------------------------------
+# Parser consistency tests (convergence pass, task 4)
+# These assert that the unified parser is honoured at every endpoint, so a
+# non-amino-acid residue (Z), an HGVS short prefix (p.R175H), and a gene-
+# prefixed token (TP53 R175H) are treated consistently everywhere.
+# ---------------------------------------------------------------------------
+
+
+def test_reasoning_chain_endpoint_rejects_non_amino_acid_mutation() -> None:
+    """Z is not one of the 20 canonical amino acids. The reasoning-chain
+    endpoint must not treat Z175H as a parsed mutation."""
+    _override_reasoning_chain_clients()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "Z175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    # ReasoningChainRequest.mutation has no model-level pattern (it tolerates
+    # malformed input and degrades gracefully), so the request is accepted and
+    # the parser marks the mutation step unavailable.
+    assert response.status_code == 200
+    chain = response.json()["chain"]
+    assert chain["chain_type"] == "mutation_impact"
+    mutation_step = chain["steps"][0]
+    assert mutation_step["available"] is False
+    assert mutation_step["confidence"] == "insufficient"
+    assert any("invalid" in f.lower() or "malformed" in f.lower()
+               for f in mutation_step["evidence_facts"])
+
+
+def test_reasoning_chain_endpoint_normalizes_hgvs_short_prefix() -> None:
+    """p.R175H must be normalized to R175H and treated as a valid mutation."""
+    _override_reasoning_chain_clients()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "p.R175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["chain"]
+    assert chain["chain_type"] == "mutation_impact"
+    mutation_step = chain["steps"][0]
+    assert mutation_step["available"] is True
+    assert any("R175H" in f for f in mutation_step["evidence_facts"])
+
+
+def test_comprehensive_report_normalizes_hgvs_short_prefix() -> None:
+    """p.R175H must be normalized to R175H in the comprehensive report path."""
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/report/comprehensive",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "p.R175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["reasoning_chain"]["mutation"] == "p.R175H"
+    mutation_step = payload["reasoning_chain"]["steps"][0]
+    assert mutation_step["available"] is True
+    assert any("R175H" in f for f in mutation_step["evidence_facts"])
+
+
+def test_comprehensive_report_gene_prefixed_mutation_is_invalid() -> None:
+    """TP53 R175H is an input-layer concern, not a single mutation token.
+    It must be invalid, not auto-split into gene + mutation."""
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/report/comprehensive",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "TP53 R175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["reasoning_chain"]
+    mutation_step = chain["steps"][0]
+    assert mutation_step["available"] is False
+    assert any("invalid" in f.lower() or "malformed" in f.lower()
+               for f in mutation_step["evidence_facts"])
+
+
+def test_comprehensive_report_malformed_mutation_does_not_traceback() -> None:
+    """A malformed mutation must yield a usable report, not a 500 traceback."""
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/report/comprehensive",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "!!!garbage!!!"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["reasoning_chain"]
+    assert chain["steps"][0]["available"] is False
+
+
+def test_interpro_endpoint_rejects_non_amino_acid_mutation_with_422() -> None:
+    """Z175H contains a non-amino-acid residue. The InterPro endpoint, which
+    is a direct domain-annotation request, must reject it with a 422 rather
+    than silently skipping mutation-overlap detection."""
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    try:
+        response = client.post(
+            "/api/v1/domains/interpro",
+            json={"accession": "P04637", "mutation": "Z175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+def test_interpro_endpoint_normalizes_hgvs_short_prefix() -> None:
+    """p.R175H must be normalized to position 175 for mutation-overlap."""
+    class PositionCapturingInterProClient:
+        def __init__(self):
+            self.captured_position = None
+
+        def fetch(self, accession: str, mutation_position: int | None = None):
+            self.captured_position = mutation_position
+            return _domain_annotation()
+
+    stub = PositionCapturingInterProClient()
+    app.dependency_overrides[get_interpro_client] = lambda: stub
+    try:
+        response = client.post(
+            "/api/v1/domains/interpro",
+            json={"accession": "P04637", "mutation": "p.R175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert stub.captured_position == 175

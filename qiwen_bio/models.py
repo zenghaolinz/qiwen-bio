@@ -70,7 +70,9 @@ class AlphaFoldAnalysisRequest(BaseModel):
     mutation: str | None = Field(
         default=None,
         max_length=30,
-        pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+        # Mirror the canonical parser in qiwen_bio.mutation: 20 canonical
+        # amino acids, optional HGVS short protein prefix "p.".
+        pattern=r"^(?:p\.)?[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
     )
 
 
@@ -114,7 +116,9 @@ class InterProAnnotationRequest(BaseModel):
     mutation: str | None = Field(
         default=None,
         max_length=30,
-        pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+        # Mirror the canonical parser in qiwen_bio.mutation: 20 canonical
+        # amino acids, optional HGVS short protein prefix "p.".
+        pattern=r"^(?:p\.)?[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
     )
 
 
