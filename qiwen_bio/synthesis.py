@@ -9,6 +9,11 @@ from qiwen_bio.alphafold import (
     MutationMismatchError,
 )
 from qiwen_bio.models import AnalysisRequest, AnalysisResponse
+from qiwen_bio.interpro import (
+    DomainAnnotation,
+    InterProNotFoundError,
+    InterProServiceError,
+)
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedServiceError
 from qiwen_bio.stringdb import EvidenceGraph, StringNotFoundError, StringServiceError
 from qiwen_bio.uniprot import UniProtAnnotation
@@ -39,6 +44,7 @@ class ComprehensiveAnalysis(BaseModel):
     structure: AlphaFoldAnalysis | None
     graph: EvidenceGraph | None
     literature: LiteratureEvidence | None
+    domains: DomainAnnotation | None
     coverage: EvidenceCoverage
     warnings: list[str]
     report_markdown: str
@@ -63,6 +69,7 @@ def build_comprehensive_analysis(
     alphafold_client,
     string_client,
     pubmed_client,
+    interpro_client,
     string_limit: int = 8,
     required_score: int = 700,
     literature_limit: int = 5,
@@ -76,6 +83,17 @@ def build_comprehensive_analysis(
         )
     )
     warnings: list[str] = []
+
+    mutation_position = None
+    if mutation and mutation[1:-1].isdigit():
+        mutation_position = int(mutation[1:-1])
+    domains = None
+    try:
+        domains = interpro_client.fetch(
+            annotation.accession, mutation_position=mutation_position
+        )
+    except (InterProNotFoundError, InterProServiceError) as exc:
+        warnings.append(f"InterPro/Pfam: {exc}")
 
     structure = None
     if annotation.alphafold_url:
@@ -116,8 +134,14 @@ def build_comprehensive_analysis(
     term_available = bool(graph and any(node.type != "protein" for node in graph.nodes))
     literature_available = bool(literature and literature.articles)
     components = [
-        _component("sequence", True, 15, f"{analysis.features.length} canonical residues parsed"),
-        _component("annotation", True, 20, f"Reviewed UniProt entry {annotation.accession}"),
+        _component("sequence", True, 10, f"{analysis.features.length} canonical residues parsed"),
+        _component("annotation", True, 15, f"Reviewed UniProt entry {annotation.accession}"),
+        _component(
+            "domains",
+            domains is not None,
+            10,
+            f"{domains.entry_count if domains else 0} direct InterPro/Pfam entries",
+        ),
         _component("structure", structure is not None, 20, "AlphaFold pLDDT and CA geometry"),
         _component("interactions", interaction_available, 15, "STRING scored interaction edges"),
         _component("pathways", term_available, 15, "STRING process/pathway enrichment terms"),
@@ -138,6 +162,7 @@ def build_comprehensive_analysis(
         structure=structure,
         graph=graph,
         literature=literature,
+        domains=domains,
         coverage=coverage,
         warnings=warnings,
         report_markdown="",
@@ -146,4 +171,3 @@ def build_comprehensive_analysis(
 
     result.report_markdown = render_comprehensive_report(result)
     return result
-

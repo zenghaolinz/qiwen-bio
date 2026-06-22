@@ -5,6 +5,7 @@ from qiwen_bio.api import (
     app,
     get_alphafold_client,
     get_embedding_service,
+    get_interpro_client,
     get_pubmed_client,
     get_string_client,
 )
@@ -22,9 +23,17 @@ from tests.test_synthesis import (
     StubPubMedClient as SynthesisPubMedClient,
     StubStringClient as SynthesisStringClient,
     StubUniProtClient as SynthesisUniProtClient,
+    StubInterProClient as SynthesisInterProClient,
 )
 from qiwen_bio.embedding import EmbeddingCache, EmbeddingService, ModelLoadError
 from tests.test_embedding import FakeProvider
+from qiwen_bio.interpro import (
+    DomainAnnotation,
+    DomainEntry,
+    DomainLocation,
+    InterProNotFoundError,
+    InterProServiceError,
+)
 
 
 client = TestClient(app)
@@ -165,6 +174,7 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
     app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
     app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
     try:
         response = client.post(
             "/api/v1/report/comprehensive",
@@ -210,3 +220,72 @@ def test_embedding_endpoint_maps_model_loading_failure_to_503() -> None:
 
     assert response.status_code == 503
     assert response.json()["detail"] == "model files unavailable"
+
+
+def _domain_annotation() -> DomainAnnotation:
+    entry = DomainEntry(
+        accession="PF00870",
+        name="P53 DNA-binding domain",
+        source_database="pfam",
+        entry_type="domain",
+        integrated_accession="IPR011615",
+        source_url="https://www.ebi.ac.uk/interpro/entry/pfam/PF00870/",
+        locations=[DomainLocation(start=100, end=288, status="CONTINUOUS")],
+        go_terms=[],
+        overlaps_mutation=True,
+    )
+    return DomainAnnotation(
+        protein_accession="P04637",
+        protein_length=393,
+        mutation_position=175,
+        entries=[entry],
+        mutation_overlaps=[entry],
+        entry_count=1,
+        location_count=1,
+        source_urls=["https://www.ebi.ac.uk/interpro/api/entry/pfam/protein/uniprot/P04637/"],
+    )
+
+
+def test_interpro_endpoint_returns_domain_and_mutation_overlap() -> None:
+    class StubInterProClient:
+        def fetch(self, accession: str, mutation_position: int | None = None):
+            assert (accession, mutation_position) == ("P04637", 175)
+            return _domain_annotation()
+
+    app.dependency_overrides[get_interpro_client] = lambda: StubInterProClient()
+    try:
+        response = client.post(
+            "/api/v1/domains/interpro",
+            json={"accession": "P04637", "mutation": "R175H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["entries"][0]["accession"] == "PF00870"
+    assert response.json()["mutation_overlaps"][0]["locations"][0]["start"] == 100
+    assert "does not by itself" in response.json()["disclaimer"]
+
+
+def test_interpro_endpoint_maps_not_found_and_service_errors() -> None:
+    class FailingInterProClient:
+        def __init__(self, error: Exception) -> None:
+            self.error = error
+
+        def fetch(self, accession: str, mutation_position: int | None = None):
+            raise self.error
+
+    for error, expected_status in (
+        (InterProNotFoundError("no domains"), 404),
+        (InterProServiceError("service unavailable"), 502),
+    ):
+        app.dependency_overrides[get_interpro_client] = lambda error=error: FailingInterProClient(
+            error
+        )
+        try:
+            response = client.post(
+                "/api/v1/domains/interpro", json={"accession": "P04637"}
+            )
+        finally:
+            app.dependency_overrides.clear()
+        assert response.status_code == expected_status

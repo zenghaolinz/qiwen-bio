@@ -43,7 +43,7 @@ Score: **4.5 / 6 = 75%**
 
 | Proposal task | Status | Evidence / gap |
 | --- | --- | --- |
-| UniProt, GO, KEGG, STRING integration | Partial | UniProt/GO/STRING complete; KEGG is indirect through STRING enrichment; InterPro/Pfam absent |
+| UniProt, GO, KEGG, STRING integration | Partial | UniProt/GO/STRING and direct InterPro/Pfam complete; KEGG remains indirect through STRING enrichment |
 | Local knowledge graph | Complete | Typed interaction/process/pathway graph and visualization |
 | Protein-pathway-phenotype chain | Partial | Protein-to-pathway evidence exists; cellular-state and phenotype reasoning are not implemented |
 | PubMed evidence | Complete | Context retrieval and auditable metadata/citations |
@@ -70,4 +70,4 @@ Accordingly, the trained AMP artifact remains offline and the product continues 
 
 ## Next Priority
 
-Qualify a versioned, redistributable AMP source with defensible negative semantics and an independent benchmark. In parallel product terms, the largest remaining core-platform gaps are direct InterPro/Pfam and KEGG integration, cellular-state/phenotype evidence, SaProt, and controlled structure-enhancement evaluation.
+Add direct KEGG pathway evidence and distinguish it from STRING enrichment, then build a bounded protein-to-cellular-process layer. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, cellular-state/phenotype evidence, and experimental imaging.

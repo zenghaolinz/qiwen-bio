@@ -2,6 +2,12 @@ from qiwen_bio.alphafold import AlphaFoldServiceError, parse_alphafold_pdb
 from qiwen_bio.pipeline import AnalysisPipeline
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedArticle, PubMedServiceError
 from qiwen_bio.stringdb import StringServiceError, build_evidence_graph
+from qiwen_bio.interpro import (
+    DomainAnnotation,
+    DomainEntry,
+    DomainLocation,
+    InterProServiceError,
+)
 from qiwen_bio.synthesis import build_comprehensive_analysis
 from qiwen_bio.uniprot import parse_uniprot_record
 from tests.test_alphafold import PDB_TEXT
@@ -44,6 +50,32 @@ class StubPubMedClient:
         )
 
 
+class StubInterProClient:
+    def fetch(self, accession: str, mutation_position: int | None = None):
+        assert accession == "P04637"
+        entry = DomainEntry(
+            accession="PF00870",
+            name="P53 DNA-binding domain",
+            source_database="pfam",
+            entry_type="domain",
+            integrated_accession="IPR011615",
+            source_url="https://www.ebi.ac.uk/interpro/entry/pfam/PF00870/",
+            locations=[DomainLocation(start=1, end=8, status="CONTINUOUS")],
+            go_terms=[],
+            overlaps_mutation=mutation_position == 2,
+        )
+        return DomainAnnotation(
+            protein_accession=accession,
+            protein_length=10,
+            mutation_position=mutation_position,
+            entries=[entry],
+            mutation_overlaps=[entry] if entry.overlaps_mutation else [],
+            entry_count=1,
+            location_count=1,
+            source_urls=["https://www.ebi.ac.uk/interpro/api/"],
+        )
+
+
 def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> None:
     result = build_comprehensive_analysis(
         identifier="TP53",
@@ -54,6 +86,7 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
         alphafold_client=StubAlphaFoldClient(),
         string_client=StubStringClient(),
         pubmed_client=StubPubMedClient(),
+        interpro_client=StubInterProClient(),
     )
 
     assert result.coverage.score == 100
@@ -62,9 +95,13 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
     assert result.structure.mutation_site.position == 2
     assert result.graph.seed == "TP53"
     assert result.literature.articles[0].pmid == "12345"
+    assert result.domains.mutation_overlaps[0].accession == "PF00870"
+    assert any(component.name == "domains" for component in result.coverage.components)
     assert "## Structure evidence" in result.report_markdown
     assert "## Interaction and pathway evidence" in result.report_markdown
     assert "[PMID 12345]" in result.report_markdown
+    assert "## Domain evidence" in result.report_markdown
+    assert "overlaps mutation position 2" in result.report_markdown
 
 
 class FailingAlphaFoldClient:
@@ -82,6 +119,11 @@ class FailingPubMedClient:
         raise PubMedServiceError("literature unavailable")
 
 
+class FailingInterProClient:
+    def fetch(self, accession: str, mutation_position: int | None = None):
+        raise InterProServiceError("domains unavailable")
+
+
 def test_optional_service_failures_return_partial_report_with_warnings() -> None:
     result = build_comprehensive_analysis(
         identifier="TP53",
@@ -92,12 +134,14 @@ def test_optional_service_failures_return_partial_report_with_warnings() -> None
         alphafold_client=FailingAlphaFoldClient(),
         string_client=FailingStringClient(),
         pubmed_client=FailingPubMedClient(),
+        interpro_client=FailingInterProClient(),
     )
 
-    assert result.coverage.score == 35
+    assert result.coverage.score == 25
     assert result.coverage.label == "limited"
     assert result.structure is None
     assert result.graph is None
     assert result.literature is None
-    assert len(result.warnings) == 3
+    assert result.domains is None
+    assert len(result.warnings) == 4
     assert "## Unavailable evidence layers" in result.report_markdown

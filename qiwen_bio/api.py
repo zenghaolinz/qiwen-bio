@@ -20,6 +20,7 @@ from qiwen_bio.models import (
     ComprehensiveReportRequest,
     EmbeddingRequest,
     EvidenceItem,
+    InterProAnnotationRequest,
     PubMedSearchRequest,
     StringGraphRequest,
     UniProtAnalysisRequest,
@@ -34,6 +35,12 @@ from qiwen_bio.embedding import (
     ProteinEmbedding,
 )
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedClient, PubMedServiceError
+from qiwen_bio.interpro import (
+    DomainAnnotation,
+    InterProClient,
+    InterProNotFoundError,
+    InterProServiceError,
+)
 from qiwen_bio.reporting import render_literature_section, render_markdown_report
 from qiwen_bio.stringdb import (
     EvidenceGraph,
@@ -61,6 +68,7 @@ embedding_service = EmbeddingService(
     Esm2EmbeddingProvider(),
     EmbeddingCache(Path(__file__).resolve().parent.parent / "data" / "embeddings"),
 )
+interpro_client = InterProClient()
 app = FastAPI(
     title="Qiwen Bio API",
     version=__version__,
@@ -102,6 +110,10 @@ def get_pubmed_client() -> PubMedClient:
 
 def get_embedding_service() -> EmbeddingService:
     return embedding_service
+
+
+def get_interpro_client() -> InterProClient:
+    return interpro_client
 
 
 class UniProtAnalysisResponse(BaseModel):
@@ -224,6 +236,7 @@ def comprehensive_report(
     alphafold: AlphaFoldClient = Depends(get_alphafold_client),
     string: StringClient = Depends(get_string_client),
     pubmed: PubMedClient = Depends(get_pubmed_client),
+    interpro: InterProClient = Depends(get_interpro_client),
 ) -> ComprehensiveAnalysis:
     try:
         return build_comprehensive_analysis(
@@ -235,6 +248,7 @@ def comprehensive_report(
             alphafold_client=alphafold,
             string_client=string,
             pubmed_client=pubmed,
+            interpro_client=interpro,
             string_limit=request.interaction_limit,
             required_score=request.required_score,
             literature_limit=request.literature_limit,
@@ -258,3 +272,17 @@ def embed_sequence(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/domains/interpro", response_model=DomainAnnotation)
+def annotate_domains(
+    request: InterProAnnotationRequest,
+    client: InterProClient = Depends(get_interpro_client),
+) -> DomainAnnotation:
+    mutation_position = int(request.mutation[1:-1]) if request.mutation else None
+    try:
+        return client.fetch(request.accession, mutation_position=mutation_position)
+    except InterProNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InterProServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

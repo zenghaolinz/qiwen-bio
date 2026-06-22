@@ -22,8 +22,8 @@
 - 使用确定性双环 Canvas 展示蛋白、过程、通路和两类证据边
 - 通过 NCBI E-utilities 检索与蛋白和图谱 term 相关的 PubMed 记录
 - 提取 PMID、题名、作者、期刊、日期和 DOI，并生成可追踪 Markdown 引用
-- 一次请求整合 UniProt、AlphaFold、STRING、PubMed 与序列分析结果
-- 输出六层证据完整度评分、缺失层警告和服务端统一 Markdown 报告
+- 一次请求整合 UniProt、InterPro/Pfam、AlphaFold、STRING、PubMed 与序列分析结果
+- 输出七层证据完整度评分、缺失层警告和服务端统一 Markdown 报告
 - 使用固定 revision 的 ESM-2 8M 模型生成 320 维 mean-pooled embedding
 - 按模型、revision、pooling 和序列内容寻址缓存 embedding
 
@@ -133,6 +133,14 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/graph/string `
   -Body '{"identifier":"TP53","organism_id":9606,"limit":8,"required_score":700}'
 ```
 
+请求 InterPro/Pfam 结构域与突变位置重叠：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/domains/interpro `
+  -ContentType 'application/json' `
+  -Body '{"accession":"P04637","mutation":"R175H"}'
+```
+
 请求 PubMed 文献记录与 Markdown 引用段落：
 
 ```powershell
@@ -159,7 +167,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 ## 后续路线
 
-阶段 1C2a 数据基础已经完成：UniProt 查询口径、标签策略、去重与冲突审计、80% 身份度聚类和同源隔离切分均已落盘。当前主线是阶段 1C2b：审查代理负样本偏差、为冻结切分预计算 embedding，并训练和校准真实分类器。
+AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。当前平台主线转向阶段 3D：接入直接 KEGG 通路证据，并进一步构建有边界的蛋白—细胞过程推理层。
 
 模型路线仍需完成：
 
@@ -176,6 +184,6 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 PubMed 模块只提供上下文检索和书目元数据。检索命中不等于文献支持某个生物结论；使用前仍需阅读摘要或全文并评估研究设计与证据质量。
 
-综合报告的 100 分是证据覆盖度：序列 15、UniProt 注释 20、结构 20、互作 15、过程/通路 15、文献 15。它不表示结论正确率、致病概率、模型置信度或实验成功率。可选数据库失败时报告仍会返回，并明确列出缺失层。
+综合报告的 100 分是证据覆盖度：序列 10、UniProt 注释 15、InterPro/Pfam 结构域 10、结构 20、互作 15、过程/通路 15、文献 15。它不表示结论正确率、致病概率、模型置信度或实验成功率。可选数据库失败时报告仍会返回，并明确列出缺失层。结构域与突变位置重叠只表示坐标包含关系，不是致病性或功能影响预测。
 
 当前 embedding 模型为 `facebook/esm2_t6_8M_UR50D`，固定 revision `c731040fcd8d73dceaa04b0a8e6329b345b0f5df`，最多接收 1022 个残基。缓存位于 `data/embeddings/`，不纳入 Git。当前开发环境安装的是 CPU 版 PyTorch；只有安装 CUDA 版 PyTorch 时 provider 才会自动使用 GPU。Embedding 是特征表示，不是功能或 AMP 分类结论。

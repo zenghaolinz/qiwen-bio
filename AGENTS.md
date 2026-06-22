@@ -32,6 +32,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/training_cli.py`: offline ESM precomputation and baseline training commands.
 - `qiwen_bio/mature_peptides.py`: exact UniProt Peptide-feature extraction, positive curation, exclusions, and readiness gates.
 - `qiwen_bio/mature_peptide_cli.py`: reproducible mature-positive audit against the frozen AMP baseline.
+- `qiwen_bio/interpro.py`: direct cursor-paginated InterPro/Pfam domain retrieval, coordinate normalization, and mutation overlap.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -40,7 +41,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | Stage | Status | Delivered | Explicitly not delivered |
 | --- | --- | --- | --- |
 | 1A Engineering MVP | Complete | Sequence validation, deterministic features, API, Web Demo, evidence chain, Markdown report | ESM embeddings and trained classifier |
-| 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | InterPro, KEGG, STRING, PubMed |
+| 1B UniProt annotation | Complete | Reviewed entry lookup, sequence/function/GO extraction, provenance, AlphaFold entry discovery | Direct KEGG, STRING, PubMed |
 | 1C1 Embedding foundation | Complete | Pinned ESM-2 8M provider, 320D mean pooling, versioned disk cache, API and Web trigger | Larger ESM variants, batching, GPU verification |
 | 1C2a Dataset foundation | Complete | Reviewed UniProt AMP-keyword positives, explicit proxy negatives, deduplication, conflict removal, 80% identity clusters, leakage-safe grouped split targeting 70/15/15, CSV/manifest export | Confirmed negative set, scalable MMseqs2 clustering, trained classifier |
 | 1C2b Calibrated offline baseline | Complete | Frozen pinned embeddings, train-only scaler/classifier, validation-only Platt calibration and threshold, pure-JSON model, model card, held-out metrics | Product/API replacement rejected because of proxy labels, precursor ambiguity, and n=13 test set |
@@ -48,14 +49,22 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 1C2d External dataset validation | Planned | Defensible negatives, scalable clustering, independent benchmark, separate calibration/threshold sets | Not started |
 | 2A Structure confidence | Complete | Dynamic AlphaFold model URL lookup, PDB parsing, mean/distributed pLDDT, mutation-site confidence | Contact maps, secondary structure, pockets, 3D viewer, SaProt |
 | 2B Structure context | Complete | CA contact map, 8 A mutation neighborhood, interactive dependency-free backbone viewer | Secondary structure, pockets, all-atom contacts, SaProt |
+| 2C Domain context | Complete | Direct InterPro and Pfam entries, cursor pagination, fragment coordinates, mutation-position overlap, API and report layer | Domain-impact prediction, conservation scoring |
 | 3A Interaction graph | Complete | STRING interactions, process/pathway enrichment, typed source-linked graph, deterministic Canvas view | Direct KEGG API, PubMed, phenotype reasoning |
 | 3B Literature retrieval | Complete | Context-bound PubMed search, structured citations, PMID links, Markdown report section | Abstract/full-text appraisal, claim-level support classification |
-| 3C Evidence synthesis | Complete | One server-generated report, six-layer coverage score, optional-service degradation, unified Web result | Claim correctness scoring, phenotype prediction |
+| 3C Evidence synthesis | Complete | One server-generated report, seven-layer coverage score, optional-service degradation, unified Web result | Claim correctness scoring, phenotype prediction |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 1C2d: qualify a redistributable source with defensible negatives and an independent benchmark, scale homology clustering, and separate calibration from threshold selection before reconsidering product integration.
+Implement stage 3D: add direct pathway evidence (starting with KEGG), distinguish direct database records from STRING enrichment, and prepare the protein-to-cellular-process reasoning boundary without claiming phenotype causality.
+
+## Domain Evidence
+
+- Endpoint: `POST /api/v1/domains/interpro` with UniProt accession and optional mutation.
+- Both InterPro and Pfam source endpoints are queried directly with cursor pagination and location deduplication.
+- TP53 `R175H` live verification returned 13 entries (9 InterPro, 4 Pfam) and five position-overlapping entries.
+- Mutation overlap means only that the supplied residue number lies inside an annotated fragment; it is not a functional-effect or pathogenicity prediction.
 
 ## Dataset Baseline
 

@@ -123,6 +123,33 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
 > pLDDT and CA proximity do not predict pathogenicity, stability, or functional effect.
 """
         )
+    if result.domains:
+        domain_lines = []
+        for entry in result.domains.entries[:12]:
+            coordinates = ", ".join(
+                f"{location.start}-{location.end}" for location in entry.locations
+            )
+            overlap = (
+                f"; overlaps mutation position {result.domains.mutation_position}"
+                if entry.overlaps_mutation
+                else ""
+            )
+            domain_lines.append(
+                f"- [{entry.accession}]({entry.source_url}) {entry.name} "
+                f"({entry.source_database}; {coordinates}{overlap})"
+            )
+        sections.append(
+            f"""## Domain evidence
+
+- Direct InterPro/Pfam entries: {result.domains.entry_count}
+- Annotated coordinate fragments: {result.domains.location_count}
+- Entries overlapping the supplied mutation position: {len(result.domains.mutation_overlaps)}
+
+{chr(10).join(domain_lines)}
+
+> {result.domains.disclaimer}
+"""
+        )
     if result.graph:
         interactions = sum(edge.type == "interacts_with" for edge in result.graph.edges)
         terms = [node for node in result.graph.nodes if node.type != "protein"]

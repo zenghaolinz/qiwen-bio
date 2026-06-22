@@ -107,3 +107,12 @@ class EmbeddingRequest(BaseModel):
         if invalid:
             raise ValueError(f"unsupported amino-acid symbols: {', '.join(invalid)}")
         return normalized
+
+
+class InterProAnnotationRequest(BaseModel):
+    accession: str = Field(min_length=6, max_length=10, pattern=r"^[A-Za-z0-9]+$")
+    mutation: str | None = Field(
+        default=None,
+        max_length=30,
+        pattern=r"^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]\d+[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy]$",
+    )
