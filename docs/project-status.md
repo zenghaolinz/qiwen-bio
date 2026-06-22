@@ -6,8 +6,8 @@ Updated: 2026-06-22
 
 Progress is measured against the 24 tasks in the original four-stage proposal. Complete tasks score 1, partial tasks score 0.5, and not-started tasks score 0. The fourth-stage experimental-image work is part of the full vision but optional to the current core bioinformatics platform.
 
-- Full four-stage vision: **15.5 / 24 = 64.58%**
-- Core software scope (stages 1-3): **15.5 / 18 = 86.11%**
+- Full four-stage vision: **15 / 24 = 62.5%**
+- Core software scope (stages 1-3): **15 / 18 = 83.33%**
 
 These percentages measure delivered scope, not biological correctness or model accuracy.
 
@@ -39,16 +39,29 @@ Score: **2.5 / 5 = 50%**
 
 ## Stage 3: Multiscale Reasoning
 
-Score: **6 / 6 = 100%**
+Score: **5.5 / 6 = 91.67%**
 
 | Proposal task | Status | Evidence / gap |
 | --- | --- | --- |
 | UniProt, GO, KEGG, STRING integration | Complete | UniProt/GO/STRING, direct InterPro/Pfam, and direct KEGG pathway records are integrated |
 | Local knowledge graph | Complete | Typed interaction/process/pathway graph and visualization |
-| Protein-pathway-phenotype chain | Complete | Cross-scale reasoning chain (stage 3G) connects mutation→structure→function→pathway→phenotype with gated hypotheses and wild-type validation; process activity and cellular state remain out of scope |
+| Protein-pathway-phenotype chain | Partial | A deterministic cross-scale evidence chain (stage 3G) assembles mutation→structure→function→pathway→phenotype with gated hypotheses and wild-type validation. This is evidence-chain synthesis, not a validated phenotype prediction, causal inference, or Graph RAG. Process activity and cellular-state measurement remain out of scope. |
 | PubMed evidence | Complete | Context retrieval, auditable metadata/citations, and abstract retrieval with claim-support classification |
 | LLM structured report | Partial | Deterministic structured synthesis and cross-scale chain exist; configurable LLM reasoning layer absent |
 | Confidence and uncertainty | Complete | Evidence coverage, provenance, optional-layer warnings, model limitations |
+
+### What the Stage 3 system is and is not
+
+The current Stage 3 system is a **deterministic evidence-chain synthesis** layer. It is explicitly **not**:
+
+- a Graph RAG system;
+- a full LLM reasoning system (no configurable LLM reasoning layer is implemented);
+- a biological causal inference engine (hypotheses are gated and uncertainty-bound, never causal claims);
+- a validated phenotype prediction system;
+- a trained deployable biological model (the AMP predictor remains a heuristic / offline baseline);
+- a clinical-grade evidence system.
+
+There is no LoRA / Adapter fine-tuning and no SaProt structure-aware embedding in the current branch.
 
 ## Stage 4: Experimental and Imaging Extensions
 
@@ -70,4 +83,4 @@ Accordingly, the trained AMP artifact remains offline and the product continues 
 
 ## Next Priority
 
-Stages 3F and 3G close the protein-process-phenotype literature loop and assemble the cross-scale reasoning chain (mutation→structure→function→pathway→phenotype). Remaining Stage 3 work is the configurable LLM reasoning layer and measured cellular-state data. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, and experimental imaging.
+Stages 3F and 3G close the protein-process-phenotype literature loop and assemble a deterministic cross-scale evidence chain. The current system is an evidence-chain milestone, not a Graph RAG or full LLM reasoning system. Remaining Stage 3 work is the configurable LLM reasoning layer and measured cellular-state data. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, and experimental imaging.
