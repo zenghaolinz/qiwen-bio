@@ -19,6 +19,10 @@ from qiwen_bio.kegg import (
     KeggPathwayAnnotation,
     KeggServiceError,
 )
+from qiwen_bio.cellular_processes import (
+    CellularProcessEvidence,
+    build_cellular_process_evidence,
+)
 from qiwen_bio.pubmed import LiteratureEvidence, PubMedServiceError
 from qiwen_bio.stringdb import EvidenceGraph, StringNotFoundError, StringServiceError
 from qiwen_bio.uniprot import UniProtAnnotation
@@ -51,6 +55,7 @@ class ComprehensiveAnalysis(BaseModel):
     literature: LiteratureEvidence | None
     domains: DomainAnnotation | None
     kegg: KeggPathwayAnnotation | None
+    cellular_processes: CellularProcessEvidence
     coverage: EvidenceCoverage
     warnings: list[str]
     report_markdown: str
@@ -128,9 +133,8 @@ def build_comprehensive_analysis(
     except (KeggNotFoundError, KeggServiceError) as exc:
         warnings.append(f"KEGG: {exc}")
 
-    context_terms = [pathway.name for pathway in kegg.pathways[:3]] if kegg else []
-    if not context_terms and graph:
-        context_terms = [node.label for node in graph.nodes if node.type != "protein"][:3]
+    cellular_processes = build_cellular_process_evidence(annotation, kegg, graph)
+    context_terms = cellular_processes.literature_context[:3]
     literature = None
     try:
         literature = pubmed_client.search(
@@ -150,9 +154,11 @@ def build_comprehensive_analysis(
     direct_pathway_available = bool(kegg and kegg.pathways)
     pathway_available = direct_pathway_available or string_term_available
     pathway_detail = (
-        f"{kegg.pathway_count} direct KEGG pathway records"
+        f"{kegg.pathway_count} direct KEGG pathway records; "
+        f"{len(cellular_processes.processes)} normalized process/pathway records"
         if direct_pathway_available
-        else "STRING enrichment fallback (no direct KEGG records)"
+        else "STRING enrichment fallback (no direct KEGG records); "
+        f"{len(cellular_processes.processes)} normalized process/pathway records"
         if string_term_available
         else "No direct KEGG or STRING pathway/process evidence"
     )
@@ -188,6 +194,7 @@ def build_comprehensive_analysis(
         literature=literature,
         domains=domains,
         kegg=kegg,
+        cellular_processes=cellular_processes,
         coverage=coverage,
         warnings=warnings,
         report_markdown="",

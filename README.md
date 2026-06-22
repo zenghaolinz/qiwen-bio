@@ -19,6 +19,7 @@
 - 使用原生 Canvas 展示可拖拽旋转的主链和接触图，无需前端 CDN
 - 接入 STRING 高置信互作与过程/通路富集结果
 - 通过 KEGG REST 直接映射 UniProt、基因与通路，并与 STRING enrichment 分开标注
+- 按稳定 GO/KEGG ID 合并 UniProt、KEGG、STRING 的细胞过程证据，并保留每个来源 support
 - 输出带来源、互作分数和富集 FDR 的 typed evidence graph
 - 使用确定性双环 Canvas 展示蛋白、过程、通路和两类证据边
 - 通过 NCBI E-utilities 检索与蛋白和图谱 term 相关的 PubMed 记录
@@ -176,7 +177,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 ## 后续路线
 
-AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG 通路证据也已接入；当前平台主线转向阶段 3E：构建有边界的蛋白—细胞过程证据层，并为后续表型文献连接准备可审计输入。
+AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG 与细胞过程证据层也已接入；当前平台主线转向阶段 3F：为有直接支持的细胞过程检索表型文献，并在证据不足时拒绝生成因果结论。
 
 模型路线仍需完成：
 
@@ -190,6 +191,8 @@ AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型�
 结构分析中的接触定义为 CA 距离不超过 8 Å，并排除序列间隔不超过 2 的局部主链邻接。该结果只表示几何邻近，不能直接解释为生化互作、致病性或稳定性变化。
 
 系统现在同时保留两类通路证据：KEGG REST 返回的直接 pathway membership，以及 STRING enrichment 返回的 KEGG、Reactome 和 WikiPathways 富集项。两者在报告中明确区分；membership、互作分数和富集 FDR 都不代表通路激活、方向性、因果关系或表型结论。KEGG 内容按请求用于学术分析，不随仓库打包或再分发。
+
+综合响应还会把 UniProt GO biological process、直接 KEGG membership 和仅与 seed 蛋白相连的 STRING enrichment 按稳定 ID 合并。每个过程保留独立 support、来源 URL 与 FDR；系统不会据此自动生成表型假设。
 
 PubMed 模块只提供上下文检索和书目元数据。检索命中不等于文献支持某个生物结论；使用前仍需阅读摘要或全文并评估研究设计与证据质量。
 

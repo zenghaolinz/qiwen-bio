@@ -198,6 +198,8 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     assert payload["annotation"]["accession"] == "P04637"
     assert payload["structure"]["mutation_site"]["position"] == 2
     assert payload["kegg"]["pathways"][0]["pathway_id"] == "hsa04115"
+    assert payload["cellular_processes"]["processes"][1]["canonical_id"] == "hsa04115"
+    assert payload["cellular_processes"]["phenotype_hypotheses"] == []
     assert payload["literature"]["articles"][0]["pmid"] == "12345"
     assert payload["report_markdown"].startswith("# Qiwen Bio comprehensive report")
 

@@ -167,6 +167,34 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
 > KEGG content is retrieved on demand for this report; it is not bundled or redistributed by Qiwen Bio.
 """
         )
+    if result.cellular_processes.processes:
+        process_lines = []
+        for process in result.cellular_processes.processes[:12]:
+            support_text = ", ".join(
+                (
+                    f"{support.source_name} ({support.evidence_type}"
+                    f"; FDR {support.fdr:.2e})"
+                    if support.fdr is not None
+                    else f"{support.source_name} ({support.evidence_type})"
+                )
+                for support in process.supports
+            )
+            process_lines.append(
+                f"- `{process.canonical_id}` {process.label}: {support_text}"
+            )
+        sections.append(
+            f"""## Cellular-process evidence
+
+- Normalized process/pathway records: {len(result.cellular_processes.processes)}
+- Supports by source: {', '.join(f'{name}={count}' for name, count in result.cellular_processes.counts_by_source.items())}
+
+{chr(10).join(process_lines)}
+
+No phenotype hypotheses were generated automatically.
+
+> {result.cellular_processes.interpretation_boundary}
+"""
+        )
     if result.graph:
         interactions = sum(edge.type == "interacts_with" for edge in result.graph.edges)
         terms = [node for node in result.graph.nodes if node.type != "protein"]

@@ -34,6 +34,7 @@ Build an evidence-oriented system that connects protein sequence and structure t
 - `qiwen_bio/mature_peptide_cli.py`: reproducible mature-positive audit against the frozen AMP baseline.
 - `qiwen_bio/interpro.py`: direct cursor-paginated InterPro/Pfam domain retrieval, coordinate normalization, and mutation overlap.
 - `qiwen_bio/kegg.py`: fixed-host UniProt-to-KEGG mapping, direct pathway links, batched flat-file metadata, and truncation audit.
+- `qiwen_bio/cellular_processes.py`: stable-ID GO/KEGG/STRING process normalization, seed-edge filtering, multi-source supports, and empty phenotype-hypothesis boundary.
 - `qiwen_bio/reporting.py`: Markdown report rendering.
 - `qiwen_bio/static/`: dependency-free Web Demo.
 
@@ -55,11 +56,20 @@ Build an evidence-oriented system that connects protein sequence and structure t
 | 3B Literature retrieval | Complete | Context-bound PubMed search, structured citations, PMID links, Markdown report section | Abstract/full-text appraisal, claim-level support classification |
 | 3C Evidence synthesis | Complete | One server-generated report, seven-layer coverage score, optional-service degradation, unified Web result | Claim correctness scoring, phenotype prediction |
 | 3D Direct pathway evidence | Complete | UniProt-to-KEGG gene conversion, direct pathway links, batched metadata, truncation audit, API/report integration, explicit STRING fallback | Pathway activity, directionality, causality, phenotype prediction |
+| 3E Cellular-process evidence | Complete | Stable-ID GO/KEGG/STRING merge, seed-linked enrichment filtering, typed multi-source supports, direct-first literature context, API/report bundle | Process activity, effect direction, phenotype hypotheses, causality |
 | 4 Experimental imaging | Planned | Gel/PCR/microscopy analysis | Not started |
 
 ## Next Priority
 
-Implement stage 3E: add a bounded cellular-process evidence layer that distinguishes database annotations from hypotheses, then connect supported processes to phenotype literature without asserting causality.
+Implement stage 3F: retrieve phenotype-oriented literature for supported cellular processes, classify claim support at the abstract-metadata boundary, and emit hypotheses only when each link has explicit evidence and uncertainty.
+
+## Cellular-Process Evidence
+
+- The comprehensive response exposes `cellular_processes.processes` with stable IDs and typed supports.
+- UniProt GO biological-process annotations, direct KEGG memberships, and seed-linked STRING enrichment merge without losing provenance.
+- STRING terms are included only when an `annotated_to` edge originates from the seed protein, preventing neighbor-only enrichment from becoming seed evidence.
+- TP53 live verification produced 92 normalized records with support counts UniProt GO 67, KEGG 20, STRING enrichment 7.
+- `phenotype_hypotheses` is intentionally empty; process association does not establish activity, direction, mechanism, causality, or phenotype.
 
 ## Direct KEGG Evidence
 

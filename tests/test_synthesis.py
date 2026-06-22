@@ -130,6 +130,16 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
     assert result.literature.articles[0].pmid == "12345"
     assert result.domains.mutation_overlaps[0].accession == "PF00870"
     assert result.kegg.pathways[0].pathway_id == "hsa04115"
+    assert [item.canonical_id for item in result.cellular_processes.processes] == [
+        "GO:0072331",
+        "hsa04115",
+    ]
+    normalized_pathway = result.cellular_processes.processes[1]
+    assert [support.source_name for support in normalized_pathway.supports] == [
+        "KEGG",
+        "STRING enrichment",
+    ]
+    assert result.cellular_processes.phenotype_hypotheses == []
     assert pubmed.context_terms[0].startswith("p53 signaling pathway")
     assert any(component.name == "domains" for component in result.coverage.components)
     assert "## Structure evidence" in result.report_markdown
@@ -139,6 +149,8 @@ def test_comprehensive_analysis_combines_all_layers_and_scores_coverage() -> Non
     assert "overlaps mutation position 2" in result.report_markdown
     assert "## Direct KEGG pathway evidence" in result.report_markdown
     assert "Returned pathway records: 1 of 1 linked" in result.report_markdown
+    assert "## Cellular-process evidence" in result.report_markdown
+    assert "No phenotype hypotheses were generated automatically" in result.report_markdown
     pathway_component = next(
         component for component in result.coverage.components if component.name == "pathways"
     )
@@ -191,6 +203,7 @@ def test_optional_service_failures_return_partial_report_with_warnings() -> None
     assert result.literature is None
     assert result.domains is None
     assert result.kegg is None
+    assert result.cellular_processes.processes == []
     assert len(result.warnings) == 5
     assert "## Unavailable evidence layers" in result.report_markdown
 
@@ -215,3 +228,4 @@ def test_kegg_failure_uses_explicit_string_enrichment_fallback() -> None:
     assert pathway_component.available is True
     assert "STRING enrichment fallback" in pathway_component.detail
     assert any(warning.startswith("KEGG:") for warning in result.warnings)
+    assert len(result.cellular_processes.processes) == 2

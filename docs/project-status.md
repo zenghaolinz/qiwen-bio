@@ -45,7 +45,7 @@ Score: **5 / 6 = 83.33%**
 | --- | --- | --- |
 | UniProt, GO, KEGG, STRING integration | Complete | UniProt/GO/STRING, direct InterPro/Pfam, and direct KEGG pathway records are integrated |
 | Local knowledge graph | Complete | Typed interaction/process/pathway graph and visualization |
-| Protein-pathway-phenotype chain | Partial | Protein-to-pathway evidence exists; cellular-state and phenotype reasoning are not implemented |
+| Protein-pathway-phenotype chain | Partial | Protein-to-pathway and normalized cellular-process evidence exist; process activity, cellular state, and phenotype reasoning are not implemented |
 | PubMed evidence | Complete | Context retrieval and auditable metadata/citations |
 | LLM structured report | Partial | Deterministic structured synthesis exists; configurable LLM reasoning layer absent |
 | Confidence and uncertainty | Complete | Evidence coverage, provenance, optional-layer warnings, model limitations |
@@ -70,4 +70,4 @@ Accordingly, the trained AMP artifact remains offline and the product continues 
 
 ## Next Priority
 
-Build a bounded protein-to-cellular-process evidence layer, then connect supported processes to phenotype literature without asserting causality. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, cellular-state/phenotype evidence, and experimental imaging.
+Connect directly supported cellular processes to phenotype-oriented literature, classify support conservatively, and keep causal hypotheses gated by explicit evidence. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, measured cellular-state data, and experimental imaging.
