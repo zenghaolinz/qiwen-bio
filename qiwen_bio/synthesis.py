@@ -9,6 +9,7 @@ from qiwen_bio.alphafold import (
     MutationMismatchError,
 )
 from qiwen_bio.models import AnalysisRequest, AnalysisResponse
+from qiwen_bio.mutation import parse_mutation
 from qiwen_bio.interpro import (
     DomainAnnotation,
     InterProNotFoundError,
@@ -103,9 +104,12 @@ def build_comprehensive_analysis(
     )
     warnings: list[str] = []
 
-    mutation_position = None
-    if mutation and mutation[1:-1].isdigit():
-        mutation_position = int(mutation[1:-1])
+    mutation_result = parse_mutation(mutation)
+    mutation_position = mutation_result.position
+    if mutation and mutation_result.status != "parsed":
+        warnings.append(
+            f"Mutation: could not parse {mutation!r}; no mutation position derived."
+        )
     domains = None
     try:
         domains = interpro_client.fetch(
@@ -120,6 +124,8 @@ def build_comprehensive_analysis(
             structure = alphafold_client.analyze(annotation.accession, mutation)
         except (AlphaFoldNotFoundError, AlphaFoldServiceError, MutationMismatchError) as exc:
             warnings.append(f"AlphaFold: {exc}")
+        except ValueError as exc:
+            warnings.append(f"AlphaFold: mutation format rejected ({exc})")
     else:
         warnings.append("AlphaFold: no model is linked from the UniProt record")
 
@@ -312,10 +318,7 @@ def build_reasoning_chain_for_identifier(
     gene_name = annotation.gene_names[0] if annotation.gene_names else identifier
     analysis = pipeline_analyze(annotation, mutation)
 
-    mutation_position = None
-    parsed_mutation = mutation.strip().upper() if mutation else ""
-    if parsed_mutation and parsed_mutation[1:-1].isdigit() and len(parsed_mutation) >= 3:
-        mutation_position = int(parsed_mutation[1:-1])
+    mutation_position = parse_mutation(mutation).position
 
     domains = None
     try:
@@ -329,7 +332,7 @@ def build_reasoning_chain_for_identifier(
     if annotation.alphafold_url:
         try:
             structure = alphafold_client.analyze(annotation.accession, mutation)
-        except (AlphaFoldNotFoundError, AlphaFoldServiceError, MutationMismatchError):
+        except (AlphaFoldNotFoundError, AlphaFoldServiceError, MutationMismatchError, ValueError):
             structure = None
 
     graph = None

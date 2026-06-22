@@ -23,7 +23,6 @@ Biological-correctness guardrails (enforced here):
 
 from __future__ import annotations
 
-import re
 from typing import Literal
 
 from pydantic import BaseModel
@@ -33,12 +32,11 @@ from qiwen_bio.cellular_processes import CellularProcessEvidence
 from qiwen_bio.interpro import DomainAnnotation
 from qiwen_bio.kegg import KeggPathwayAnnotation
 from qiwen_bio.models import AnalysisResponse
+from qiwen_bio.mutation import parse_mutation, wild_type_matches_sequence
 from qiwen_bio.phenotype_literature import PhenotypeLiteratureEvidence
 from qiwen_bio.stringdb import EvidenceGraph
 from qiwen_bio.uniprot import UniProtAnnotation
 
-
-MUTATION_PATTERN = re.compile(r"^([A-Z])(\d+)([A-Z])$")
 
 ChainType = Literal["mutation_impact", "protein_function"]
 StepConfidence = Literal["high", "medium", "low", "insufficient"]
@@ -68,31 +66,6 @@ class ReasoningChain(BaseModel):
         "or organismal phenotype. Hypothesis sentences are explicitly labelled and require "
         "full-text appraisal and experimental validation before use."
     )
-
-
-def _parse_mutation(mutation: str | None) -> tuple[str, int, str] | None:
-    """Parse a mutation string into (wild_type, position, mutant).
-
-    Returns None if the mutation is missing or does not match the strict
-    ``X123Y`` format. This is deliberately stricter than the legacy
-    ``mutation[1:-1].isdigit()`` slice in synthesis.py and is the canonical
-    parse for the reasoning chain.
-    """
-    if not mutation:
-        return None
-    match = MUTATION_PATTERN.fullmatch(mutation.strip().upper())
-    if not match:
-        return None
-    wild_type, position_text, mutant = match.groups()
-    return wild_type, int(position_text), mutant
-
-
-def _wild_type_matches_sequence(
-    sequence: str, wild_type: str, position: int
-) -> bool:
-    if position < 1 or position > len(sequence):
-        return False
-    return sequence[position - 1] == wild_type
 
 
 def _confidence_from_plddt(plddt: float | None) -> StepConfidence:
@@ -128,8 +101,8 @@ def build_mutation_step(
     """Build the mutation step. Records a mismatch fact when the wild-type
     residue does not match the UniProt sequence, which downstream steps use to
     suppress functional-impact hypotheses."""
-    parsed = _parse_mutation(mutation)
-    if parsed is None:
+    parsed = parse_mutation(mutation)
+    if parsed.status != "parsed" or parsed.wild_type is None or parsed.position is None or parsed.mutant is None:
         return ChainStep(
             step_id="mutation",
             title="Mutation input",
@@ -140,11 +113,11 @@ def build_mutation_step(
             available=False,
         )
 
-    wild_type, position, mutant = parsed
+    wild_type, position, mutant = parsed.wild_type, parsed.position, parsed.mutant
     facts: list[str] = [f"User-supplied mutation: {wild_type}{position}{mutant}."]
     sources: list[str] = ["User input"]
 
-    matches = _wild_type_matches_sequence(annotation.sequence, wild_type, position)
+    matches = wild_type_matches_sequence(annotation.sequence, wild_type, position)
     if matches:
         facts.append(
             f"Wild-type {wild_type} at position {position} matches the UniProt sequence."

@@ -29,6 +29,7 @@ from qiwen_bio.models import (
     UniProtAnalysisRequest,
 )
 from qiwen_bio.pipeline import AnalysisPipeline
+from qiwen_bio.mutation import parse_mutation
 from qiwen_bio.embedding import (
     EmbeddingCache,
     EmbeddingService,
@@ -302,7 +303,7 @@ def annotate_domains(
     request: InterProAnnotationRequest,
     client: InterProClient = Depends(get_interpro_client),
 ) -> DomainAnnotation:
-    mutation_position = int(request.mutation[1:-1]) if request.mutation else None
+    mutation_position = parse_mutation(request.mutation).position
     try:
         return client.fetch(request.accession, mutation_position=mutation_position)
     except InterProNotFoundError as exc:

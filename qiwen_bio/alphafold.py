@@ -1,13 +1,13 @@
-import re
 from math import dist
 from statistics import mean
 
 import httpx
 from pydantic import BaseModel
 
+from qiwen_bio.mutation import parse_mutation
+
 
 ALPHAFOLD_BASE_URL = "https://alphafold.ebi.ac.uk"
-MUTATION_PATTERN = re.compile(r"^([ACDEFGHIKLMNPQRSTVWY])(\d+)([ACDEFGHIKLMNPQRSTVWY])$")
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C",
     "GLN": "Q", "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I",
@@ -162,11 +162,10 @@ def parse_alphafold_pdb(
     mutation_site = None
     mutation_neighborhood: list[MutationNeighbor] = []
     if mutation:
-        match = MUTATION_PATTERN.fullmatch(mutation.strip().upper())
-        if not match:
+        parsed = parse_mutation(mutation)
+        if parsed.status != "parsed" or parsed.wild_type is None or parsed.position is None or parsed.mutant is None:
             raise ValueError("mutation must use a format such as R175H")
-        wild_type, position_text, mutant = match.groups()
-        position = int(position_text)
+        wild_type, position, mutant = parsed.wild_type, parsed.position, parsed.mutant
         if position not in residues:
             raise MutationMismatchError(f"position {position} is absent from the AlphaFold model")
         mutation_residue = residues[position]
