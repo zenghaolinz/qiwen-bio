@@ -195,7 +195,16 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 ## 后续路线
 
-AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG、细胞过程证据、表型文献层（阶段 3F）与跨尺度推理链（阶段 3G）均已接入：为有直接支持的细胞过程检索表型文献，在摘要-元数据边界保守分类 claim 支持，并组装突变→结构→功能→通路→表型的跨尺度推理链，每步绑定证据与不确定性。剩余阶段 3 工作为可配置 LLM 推理层与实测细胞状态数据。
+AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG、细胞过程证据、表型文献层（阶段 3F）、跨尺度推理链（阶段 3G）与统一结构证据摘要（阶段 2 收敛）均已接入：为有直接支持的细胞过程检索表型文献，在摘要-元数据边界保守分类 claim 支持，组装突变→结构→功能→通路→表型的跨尺度推理链，并把 AlphaFold pLDDT、CA 几何、结构域重叠聚合成可复用的 `StructureFeatureSummary`。剩余阶段 3 工作为可配置 LLM 推理层与实测细胞状态数据。
+
+结构特征导出（为后续 controlled benchmark 准备，不训练模型）：
+
+```powershell
+python -m qiwen_bio.structure_cli --accession P04637 --mutation R175H `
+  --output data/exports/structure_features.jsonl
+```
+
+该导出只输出结构特征（pLDDT、CA 接触数、邻域数、结构域重叠等），不包含致病性或功能影响标签，仅用于未来受控的结构增强预测 benchmark。
 
 模型路线仍需完成：
 
