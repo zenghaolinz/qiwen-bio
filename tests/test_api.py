@@ -199,7 +199,14 @@ def test_comprehensive_report_endpoint_returns_server_generated_bundle() -> None
     assert payload["structure"]["mutation_site"]["position"] == 2
     assert payload["kegg"]["pathways"][0]["pathway_id"] == "hsa04115"
     assert payload["cellular_processes"]["processes"][1]["canonical_id"] == "hsa04115"
+    # Per ADR-0012 the cellular-process layer keeps its own list empty;
+    # hypotheses live on the separate phenotype_literature object.
     assert payload["cellular_processes"]["phenotype_hypotheses"] == []
+    assert payload["phenotype_literature"]["gene"] == "TP53"
+    assert payload["phenotype_literature"]["counts_by_level"]["supports"] >= 1
+    assert len(payload["phenotype_literature"]["hypotheses"]) >= 1
+    assert payload["reasoning_chain"]["chain_type"] == "mutation_impact"
+    assert payload["reasoning_chain"]["mutation"] == "R2H"
     assert payload["literature"]["articles"][0]["pmid"] == "12345"
     assert payload["report_markdown"].startswith("# Qiwen Bio comprehensive report")
 
@@ -365,3 +372,93 @@ def test_kegg_endpoint_maps_not_found_and_service_errors() -> None:
         finally:
             app.dependency_overrides.clear()
         assert response.status_code == expected_status
+
+
+def test_phenotype_literature_endpoint_returns_gated_evidence() -> None:
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/literature/phenotype",
+            json={"identifier": "TP53", "organism_id": 9606, "limit_per_process": 2},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    evidence = payload["evidence"]
+    assert evidence["gene"] == "TP53"
+    assert evidence["counts_by_level"]["supports"] >= 1
+    assert len(evidence["hypotheses"]) >= 1
+    assert "abstract-level hypothesis" in evidence["hypotheses"][0]
+    assert "## Phenotype literature evidence" in payload["markdown_section"]
+    assert "abstract-metadata boundary" in payload["markdown_section"]
+
+
+def test_phenotype_literature_endpoint_maps_uniprot_failure_to_404() -> None:
+    from qiwen_bio.uniprot import ProteinNotFoundError
+
+    class FailingUniProtClient:
+        def resolve(self, identifier: str, organism_id: int = 9606):
+            raise ProteinNotFoundError("not found")
+
+    app.dependency_overrides[get_uniprot_client] = lambda: FailingUniProtClient()
+    try:
+        response = client.post(
+            "/api/v1/literature/phenotype",
+            json={"identifier": "NOSUCH", "organism_id": 9606},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+def test_reasoning_chain_endpoint_returns_mutation_impact_chain() -> None:
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "R2H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    chain = payload["chain"]
+    assert chain["chain_type"] == "mutation_impact"
+    assert chain["gene"] == "TP53"
+    assert chain["mutation"] == "R2H"
+    assert [step["step_id"] for step in chain["steps"]] == [
+        "mutation", "structure", "function", "pathway", "phenotype"
+    ]
+    assert "## Reasoning chain" in payload["markdown_section"]
+    assert "假设" in payload["markdown_section"] or "no hypothesis" in payload["markdown_section"]
+
+
+def test_reasoning_chain_endpoint_maps_uniprot_failure_to_404() -> None:
+    from qiwen_bio.uniprot import ProteinNotFoundError
+
+    class FailingUniProtClient:
+        def resolve(self, identifier: str, organism_id: int = 9606):
+            raise ProteinNotFoundError("not found")
+
+    app.dependency_overrides[get_uniprot_client] = lambda: FailingUniProtClient()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "NOSUCH", "organism_id": 9606},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404

@@ -84,6 +84,16 @@ h2 { font: 24px Constantia, Georgia, serif; font-weight: 500; }
 details { border-top: 1px solid var(--line); padding-top: 15px; } summary { cursor: pointer; font-weight: 700; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #e9e8df; padding: 16px; font-size: 12px; line-height: 1.55; max-height: 360px; overflow: auto; }
 .error { margin-top: 20px; padding: 14px; color: #8a1e1e; background: #f7e4df; }.hidden { display: none !important; }
+.support-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-right: 8px; vertical-align: middle; }
+.support-chip.supports { background: #d7f45b; color: #1d604b; }
+.support-chip.mentions { background: #f0d451; color: #5a4a1a; }
+.support-chip.no_abstract { background: #ef762f; color: #fff; }
+.phenotype-hypotheses { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.phenotype-hypotheses small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.phenotype-hypotheses ul { padding-left: 18px; margin: 8px 0 0; }.phenotype-hypotheses li { margin-bottom: 8px; line-height: 1.5; font-size: 13px; }
+.chain-facts { margin: 6px 0; }.chain-facts small { display: block; color: var(--muted); font-size: 12px; line-height: 1.45; margin-bottom: 2px; }
+.chain-hypothesis { margin: 6px 0 0; padding: 8px 10px; background: #f4ecd6; border-left: 3px solid #d6a824; font-size: 12px; line-height: 1.5; }
+.support-chip.unavailable { background: #c9c5bb; color: #4a463e; }
 @keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
 @media (max-width: 820px) { main { padding-top: 36px; }.workspace { grid-template-columns: 1fr; }.metrics { grid-template-columns: 1fr 1fr; }.metrics article:nth-child(2) { border-right: 0; }.metrics article { border-bottom: 1px solid var(--line); } }

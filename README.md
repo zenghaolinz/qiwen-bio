@@ -20,6 +20,8 @@
 - 接入 STRING 高置信互作与过程/通路富集结果
 - 通过 KEGG REST 直接映射 UniProt、基因与通路，并与 STRING enrichment 分开标注
 - 按稳定 GO/KEGG ID 合并 UniProt、KEGG、STRING 的细胞过程证据，并保留每个来源 support
+- 为有直接支持的细胞过程检索表型文献，在摘要-元数据边界保守分类 claim 支持，并仅在存在 `supports` 文章时生成带不确定性的表型假设
+- 组装跨尺度推理链（突变→结构→功能→通路→表型），分层触发，野生型校验，门控式"可能影响"假设
 - 输出带来源、互作分数和富集 FDR 的 typed evidence graph
 - 使用确定性双环 Canvas 展示蛋白、过程、通路和两类证据边
 - 通过 NCBI E-utilities 检索与蛋白和图谱 term 相关的 PubMed 记录
@@ -159,6 +161,22 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/literature/pubm
   -Body '{"protein":"TP53","context_terms":["Cell cycle","p53 signaling pathway"],"limit":5}'
 ```
 
+请求表型文献证据与保守 claim 支持分类：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/literature/phenotype `
+  -ContentType 'application/json' `
+  -Body '{"identifier":"TP53","organism_id":9606,"limit_per_process":3}'
+```
+
+请求跨尺度推理链：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/reasoning/chain `
+  -ContentType 'application/json' `
+  -Body '{"identifier":"TP53","organism_id":9606,"mutation":"R175H"}'
+```
+
 生成统一综合报告：
 
 ```powershell
@@ -177,7 +195,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/embedding/esm2 
 
 ## 后续路线
 
-AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG 与细胞过程证据层也已接入；当前平台主线转向阶段 3F：为有直接支持的细胞过程检索表型文献，并在证据不足时拒绝生成因果结论。
+AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型部署仍被防御性负类与独立外部 benchmark 阻塞。直接 KEGG、细胞过程证据、表型文献层（阶段 3F）与跨尺度推理链（阶段 3G）均已接入：为有直接支持的细胞过程检索表型文献，在摘要-元数据边界保守分类 claim 支持，并组装突变→结构→功能→通路→表型的跨尺度推理链，每步绑定证据与不确定性。剩余阶段 3 工作为可配置 LLM 推理层与实测细胞状态数据。
 
 模型路线仍需完成：
 
@@ -192,7 +210,7 @@ AMP 数据、离线校准基线和成熟肽正类审计均已完成，但模型�
 
 系统现在同时保留两类通路证据：KEGG REST 返回的直接 pathway membership，以及 STRING enrichment 返回的 KEGG、Reactome 和 WikiPathways 富集项。两者在报告中明确区分；membership、互作分数和富集 FDR 都不代表通路激活、方向性、因果关系或表型结论。KEGG 内容按请求用于学术分析，不随仓库打包或再分发。
 
-综合响应还会把 UniProt GO biological process、直接 KEGG membership 和仅与 seed 蛋白相连的 STRING enrichment 按稳定 ID 合并。每个过程保留独立 support、来源 URL 与 FDR；系统不会据此自动生成表型假设。
+综合响应还会把 UniProt GO biological process、直接 KEGG membership 和仅与 seed 蛋白相连的 STRING enrichment 按稳定 ID 合并。每个过程保留独立 support、来源 URL 与 FDR。表型文献层仅为有直接支持（UniProt GO 注释或直接 KEGG membership）的过程检索 PubMed 摘要，并在摘要-元数据边界把每篇文章分类为 `supports`、`mentions` 或 `no_abstract`；只有当一个直接支持的过程存在至少一篇 `supports` 文章时才生成表型假设，且每条假设都附带不确定性说明。该分类不是全文评估、claim 级证据分级或因果推断。
 
 PubMed 模块只提供上下文检索和书目元数据。检索命中不等于文献支持某个生物结论；使用前仍需阅读摘要或全文并评估研究设计与证据质量。
 

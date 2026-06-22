@@ -121,3 +121,18 @@ class InterProAnnotationRequest(BaseModel):
 class KeggPathwayRequest(BaseModel):
     accession: str = Field(min_length=6, max_length=10, pattern=r"^[A-Za-z0-9]+$")
     limit: int = Field(default=20, ge=1, le=50)
+
+
+class PhenotypeLiteratureRequest(BaseModel):
+    identifier: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$")
+    organism_id: int = Field(default=9606, gt=0)
+    limit_per_process: int = Field(default=3, ge=1, le=5)
+
+
+class ReasoningChainRequest(BaseModel):
+    identifier: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$")
+    organism_id: int = Field(default=9606, gt=0)
+    mutation: str | None = Field(default=None, max_length=30)
+    interaction_limit: int = Field(default=8, ge=1, le=20)
+    required_score: int = Field(default=700, ge=0, le=1000)
+    limit_per_process: int = Field(default=3, ge=1, le=5)

@@ -22,7 +22,9 @@ from qiwen_bio.models import (
     EvidenceItem,
     InterProAnnotationRequest,
     KeggPathwayRequest,
+    PhenotypeLiteratureRequest,
     PubMedSearchRequest,
+    ReasoningChainRequest,
     StringGraphRequest,
     UniProtAnalysisRequest,
 )
@@ -55,7 +57,14 @@ from qiwen_bio.stringdb import (
     StringNotFoundError,
     StringServiceError,
 )
-from qiwen_bio.synthesis import ComprehensiveAnalysis, build_comprehensive_analysis
+from qiwen_bio.synthesis import (
+    ComprehensiveAnalysis,
+    build_comprehensive_analysis,
+    build_phenotype_literature_for_identifier,
+    build_reasoning_chain_for_identifier,
+)
+from qiwen_bio.phenotype_literature import PhenotypeLiteratureEvidence
+from qiwen_bio.reasoning_chain import ReasoningChain
 from qiwen_bio.uniprot import (
     AmbiguousProteinError,
     ProteinNotFoundError,
@@ -313,3 +322,80 @@ def annotate_kegg_pathways(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except KeggServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+class PhenotypeLiteratureResponse(BaseModel):
+    evidence: PhenotypeLiteratureEvidence
+    markdown_section: str
+
+
+@app.post(
+    "/api/v1/literature/phenotype", response_model=PhenotypeLiteratureResponse
+)
+def phenotype_literature(
+    request: PhenotypeLiteratureRequest,
+    uniprot: UniProtClient = Depends(get_uniprot_client),
+    string: StringClient = Depends(get_string_client),
+    pubmed: PubMedClient = Depends(get_pubmed_client),
+    kegg: KeggClient = Depends(get_kegg_client),
+) -> PhenotypeLiteratureResponse:
+    try:
+        evidence, markdown_section = build_phenotype_literature_for_identifier(
+            identifier=request.identifier,
+            organism_id=request.organism_id,
+            uniprot_client=uniprot,
+            string_client=string,
+            pubmed_client=pubmed,
+            kegg_client=kegg,
+            limit_per_process=request.limit_per_process,
+        )
+    except ProteinNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AmbiguousProteinError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UniProtServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return PhenotypeLiteratureResponse(
+        evidence=evidence, markdown_section=markdown_section
+    )
+
+
+class ReasoningChainResponse(BaseModel):
+    chain: ReasoningChain
+    markdown_section: str
+
+
+@app.post("/api/v1/reasoning/chain", response_model=ReasoningChainResponse)
+def reasoning_chain(
+    request: ReasoningChainRequest,
+    uniprot: UniProtClient = Depends(get_uniprot_client),
+    alphafold: AlphaFoldClient = Depends(get_alphafold_client),
+    string: StringClient = Depends(get_string_client),
+    pubmed: PubMedClient = Depends(get_pubmed_client),
+    interpro: InterProClient = Depends(get_interpro_client),
+    kegg: KeggClient = Depends(get_kegg_client),
+) -> ReasoningChainResponse:
+    try:
+        chain, markdown_section = build_reasoning_chain_for_identifier(
+            identifier=request.identifier,
+            organism_id=request.organism_id,
+            mutation=request.mutation,
+            uniprot_client=uniprot,
+            alphafold_client=alphafold,
+            string_client=string,
+            pubmed_client=pubmed,
+            interpro_client=interpro,
+            kegg_client=kegg,
+            string_limit=request.interaction_limit,
+            required_score=request.required_score,
+            limit_per_process=request.limit_per_process,
+        )
+    except ProteinNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AmbiguousProteinError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UniProtServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return ReasoningChainResponse(
+        chain=chain, markdown_section=markdown_section
+    )

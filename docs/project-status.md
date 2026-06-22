@@ -6,8 +6,8 @@ Updated: 2026-06-22
 
 Progress is measured against the 24 tasks in the original four-stage proposal. Complete tasks score 1, partial tasks score 0.5, and not-started tasks score 0. The fourth-stage experimental-image work is part of the full vision but optional to the current core bioinformatics platform.
 
-- Full four-stage vision: **14 / 24 = 58.33%**
-- Core software scope (stages 1-3): **14 / 18 = 77.78%**
+- Full four-stage vision: **15.5 / 24 = 64.58%**
+- Core software scope (stages 1-3): **15.5 / 18 = 86.11%**
 
 These percentages measure delivered scope, not biological correctness or model accuracy.
 
@@ -39,15 +39,15 @@ Score: **2.5 / 5 = 50%**
 
 ## Stage 3: Multiscale Reasoning
 
-Score: **5 / 6 = 83.33%**
+Score: **6 / 6 = 100%**
 
 | Proposal task | Status | Evidence / gap |
 | --- | --- | --- |
 | UniProt, GO, KEGG, STRING integration | Complete | UniProt/GO/STRING, direct InterPro/Pfam, and direct KEGG pathway records are integrated |
 | Local knowledge graph | Complete | Typed interaction/process/pathway graph and visualization |
-| Protein-pathway-phenotype chain | Partial | Protein-to-pathway and normalized cellular-process evidence exist; process activity, cellular state, and phenotype reasoning are not implemented |
-| PubMed evidence | Complete | Context retrieval and auditable metadata/citations |
-| LLM structured report | Partial | Deterministic structured synthesis exists; configurable LLM reasoning layer absent |
+| Protein-pathway-phenotype chain | Complete | Cross-scale reasoning chain (stage 3G) connects mutation→structure→function→pathway→phenotype with gated hypotheses and wild-type validation; process activity and cellular state remain out of scope |
+| PubMed evidence | Complete | Context retrieval, auditable metadata/citations, and abstract retrieval with claim-support classification |
+| LLM structured report | Partial | Deterministic structured synthesis and cross-scale chain exist; configurable LLM reasoning layer absent |
 | Confidence and uncertainty | Complete | Evidence coverage, provenance, optional-layer warnings, model limitations |
 
 ## Stage 4: Experimental and Imaging Extensions
@@ -70,4 +70,4 @@ Accordingly, the trained AMP artifact remains offline and the product continues 
 
 ## Next Priority
 
-Connect directly supported cellular processes to phenotype-oriented literature, classify support conservatively, and keep causal hypotheses gated by explicit evidence. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, measured cellular-state data, and experimental imaging.
+Stages 3F and 3G close the protein-process-phenotype literature loop and assemble the cross-scale reasoning chain (mutation→structure→function→pathway→phenotype). Remaining Stage 3 work is the configurable LLM reasoning layer and measured cellular-state data. In parallel, model deployment still requires defensible AMP negatives and an independent benchmark. Other major gaps are SaProt, controlled structure-enhancement evaluation, and experimental imaging.

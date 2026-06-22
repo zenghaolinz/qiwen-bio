@@ -2,7 +2,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qiwen_bio.models import AnalysisResponse
+    from qiwen_bio.phenotype_literature import PhenotypeLiteratureEvidence
     from qiwen_bio.pubmed import LiteratureEvidence
+    from qiwen_bio.reasoning_chain import ReasoningChain
     from qiwen_bio.synthesis import ComprehensiveAnalysis
 
 
@@ -64,6 +66,82 @@ The transparent AMP baseline returned **{result.prediction.label}** with a score
 ## Suggested next validation
 
 Replace the demo predictor with a classifier trained on a curated AMP dataset, split by sequence similarity, then report AUROC, AUPRC, calibration, and an external test result. Candidate activity should be confirmed with an appropriate antimicrobial assay.
+"""
+
+
+def render_phenotype_literature_section(
+    evidence: "PhenotypeLiteratureEvidence",
+) -> str:
+    if evidence.process_links:
+        link_lines = []
+        for link in evidence.process_links:
+            phrases = (
+                f" · verbs: {', '.join(link.matched_phrases)}"
+                if link.matched_phrases
+                else ""
+            )
+            link_lines.append(
+                f"- [{link.support_level}] `{link.process_id}` {link.process_label} — "
+                f"[PMID {link.pmid}](https://pubmed.ncbi.nlm.nih.gov/{link.pmid}/) "
+                f"{link.title.rstrip('.')}{phrases} — {link.evidence_basis}"
+            )
+        links_text = "\n".join(link_lines)
+    else:
+        links_text = "- No phenotype literature links were classified for the directly supported processes."
+    if evidence.hypotheses:
+        hypothesis_lines = "\n".join(f"- {hypothesis}" for hypothesis in evidence.hypotheses)
+    else:
+        hypothesis_lines = "- No phenotype hypothesis was emitted: no directly supported process had an article classified as 'supports' at the abstract-metadata boundary."
+    counts_text = ", ".join(
+        f"{level}={count}" for level, count in evidence.counts_by_level.items()
+    ) or "none"
+    return f"""## Phenotype literature evidence
+
+- Gene: {evidence.gene}
+- Claim-support counts: {counts_text}
+
+### Process-link classifications
+
+{links_text}
+
+### Phenotype hypotheses
+
+{hypothesis_lines}
+
+> {evidence.disclaimer}
+> {evidence.boundary}
+"""
+
+
+def render_reasoning_chain_section(chain: "ReasoningChain") -> str:
+    step_blocks = []
+    for step in chain.steps:
+        status = "available" if step.available else "unavailable"
+        facts = "\n".join(f"  - {fact}" for fact in step.evidence_facts) or "  - (no facts)"
+        hypothesis_line = (
+            f"  - 假设：{step.hypothesis}" if step.hypothesis else "  - (no hypothesis emitted)"
+        )
+        sources = ", ".join(step.evidence_sources) or "none"
+        step_blocks.append(
+            f"### {step.title} (`{step.step_id}`) — {status} · confidence: {step.confidence}\n\n"
+            f"Facts:\n{facts}\n\n"
+            f"{hypothesis_line}\n\n"
+            f"Sources: {sources}\n\n"
+            f"Uncertainty: {step.uncertainty}"
+        )
+    steps_text = "\n\n".join(step_blocks)
+    missing = ", ".join(chain.missing_layers) or "none"
+    return f"""## Reasoning chain
+
+- Chain type: `{chain.chain_type}`
+- Gene: {chain.gene}
+- Mutation: {chain.mutation or "not supplied"}
+- Missing layers: {missing}
+- Summary: {chain.summary}
+
+{steps_text}
+
+> {chain.boundary}
 """
 
 
@@ -182,6 +260,17 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
             process_lines.append(
                 f"- `{process.canonical_id}` {process.label}: {support_text}"
             )
+        if result.phenotype_literature is not None and result.phenotype_literature.hypotheses:
+            hypothesis_summary = (
+                "Phenotype hypotheses were emitted for directly supported processes "
+                "with abstract-level supporting literature; see the Phenotype literature "
+                "evidence section."
+            )
+        else:
+            hypothesis_summary = (
+                "No phenotype hypothesis was emitted. Process association does not "
+                "establish activity, direction, mechanism, causality, or phenotype."
+            )
         sections.append(
             f"""## Cellular-process evidence
 
@@ -190,7 +279,7 @@ def render_comprehensive_report(result: "ComprehensiveAnalysis") -> str:
 
 {chr(10).join(process_lines)}
 
-No phenotype hypotheses were generated automatically.
+{hypothesis_summary}
 
 > {result.cellular_processes.interpretation_boundary}
 """
@@ -217,6 +306,10 @@ No phenotype hypotheses were generated automatically.
         )
     if result.literature:
         sections.append(render_literature_section(result.literature))
+    if result.phenotype_literature is not None:
+        sections.append(render_phenotype_literature_section(result.phenotype_literature))
+    if result.reasoning_chain is not None:
+        sections.append(render_reasoning_chain_section(result.reasoning_chain))
     if result.warnings:
         warning_lines = "\n".join(f"- {warning}" for warning in result.warnings)
         sections.append(f"## Unavailable evidence layers\n\n{warning_lines}\n")

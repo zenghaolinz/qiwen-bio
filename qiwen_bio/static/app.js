@@ -95,6 +95,14 @@ async function requestAnalysis(url, payload) {
         document.querySelector("#literature").classList.remove("hidden");
         displayLiterature(data.annotation.gene_names[0] || data.annotation.accession, data.literature);
       } else document.querySelector("#literature").classList.add("hidden");
+      if (data.phenotype_literature) {
+        document.querySelector("#phenotype-literature").classList.remove("hidden");
+        displayPhenotypeLiterature(data.phenotype_literature);
+      } else document.querySelector("#phenotype-literature").classList.add("hidden");
+      if (data.reasoning_chain) {
+        document.querySelector("#reasoning-chain").classList.remove("hidden");
+        displayReasoningChain(data.reasoning_chain);
+      } else document.querySelector("#reasoning-chain").classList.add("hidden");
     } else if (data.annotation) {
       document.querySelector("#coverage").classList.add("hidden");
       const enrichments = [renderEvidenceGraph(data.annotation.gene_names[0] || data.annotation.accession)];
@@ -106,6 +114,8 @@ async function requestAnalysis(url, payload) {
       document.querySelector("#structure").classList.add("hidden");
       document.querySelector("#evidence-graph").classList.add("hidden");
       document.querySelector("#literature").classList.add("hidden");
+      document.querySelector("#phenotype-literature").classList.add("hidden");
+      document.querySelector("#reasoning-chain").classList.add("hidden");
     }
   } catch (err) {
     error.textContent = err.message; error.classList.remove("hidden");
@@ -299,6 +309,46 @@ function displayLiterature(protein, evidence) {
         </li>`).join("")
     : "<li>No records matched this query.</li>";
   document.querySelector("#literature-note").textContent = evidence.disclaimer;
+}
+
+function displayPhenotypeLiterature(evidence) {
+  document.querySelector("#phenotype-gene").textContent = evidence.gene;
+  const counts = Object.entries(evidence.counts_by_level)
+    .map(([level, count]) => `${level}=${count}`).join(", ") || "none";
+  document.querySelector("#phenotype-counts").textContent = counts;
+  document.querySelector("#phenotype-links").innerHTML = evidence.process_links.length
+    ? evidence.process_links.map(link => `
+        <li>
+          <span class="support-chip ${link.support_level}">${escapeHtml(link.support_level)}</span>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/${link.pmid}/" target="_blank" rel="noreferrer">${escapeHtml(link.title)}</a>
+          <p><b>${escapeHtml(link.process_id)}</b> ${escapeHtml(link.process_label)} · PMID ${link.pmid} · ${escapeHtml(link.evidence_basis)}</p>
+        </li>`).join("")
+    : "<li>No phenotype literature links were classified for the directly supported processes.</li>";
+  document.querySelector("#phenotype-hypotheses").innerHTML = evidence.hypotheses.length
+    ? evidence.hypotheses.map(item => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No phenotype hypothesis was emitted: no directly supported process had an article classified as 'supports'.</li>";
+  document.querySelector("#phenotype-note").textContent = `${evidence.disclaimer} ${evidence.boundary}`;
+}
+
+function displayReasoningChain(chain) {
+  const typeLabel = chain.chain_type === "mutation_impact" ? "突变影响推理链" : "蛋白功能证据链";
+  document.querySelector("#chain-type").textContent = typeLabel;
+  document.querySelector("#chain-mutation").textContent = chain.mutation ? `mutation ${chain.mutation}` : "no mutation";
+  document.querySelector("#chain-summary").textContent = chain.summary;
+  document.querySelector("#chain-steps").innerHTML = chain.steps.map(step => {
+    const status = step.available ? "available" : "unavailable";
+    const facts = step.evidence_facts.map(f => `<small>${escapeHtml(f)}</small>`).join("");
+    const hypothesis = step.hypothesis
+      ? `<p class="chain-hypothesis"><b>假设：</b>${escapeHtml(step.hypothesis)}</p>`
+      : "";
+    return `<li>
+      <span class="support-chip ${status}">${escapeHtml(status)}</span>
+      <b>${escapeHtml(step.title)}</b> · ${escapeHtml(step.confidence)}
+      <div class="chain-facts">${facts}</div>
+      ${hypothesis}
+    </li>`;
+  }).join("");
+  document.querySelector("#chain-note").textContent = chain.boundary;
 }
 
 function drawEvidenceGraph(graph) {
