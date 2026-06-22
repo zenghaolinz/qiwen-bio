@@ -462,3 +462,83 @@ def test_reasoning_chain_endpoint_maps_uniprot_failure_to_404() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
+
+
+def _override_reasoning_chain_clients():
+    app.dependency_overrides[get_uniprot_client] = lambda: SynthesisUniProtClient()
+    app.dependency_overrides[get_alphafold_client] = lambda: SynthesisAlphaFoldClient()
+    app.dependency_overrides[get_string_client] = lambda: SynthesisStringClient()
+    app.dependency_overrides[get_pubmed_client] = lambda: SynthesisPubMedClient()
+    app.dependency_overrides[get_interpro_client] = lambda: SynthesisInterProClient()
+    app.dependency_overrides[get_kegg_client] = lambda: SynthesisKeggClient()
+
+
+def test_reasoning_chain_endpoint_no_mutation_returns_protein_function() -> None:
+    """Task 5: no mutation input must not return a mutation_impact chain."""
+    _override_reasoning_chain_clients()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["chain"]
+    assert chain["chain_type"] == "protein_function"
+    assert chain["mutation"] is None
+    assert "mutation" not in {step["step_id"] for step in chain["steps"]}
+    for step in chain["steps"]:
+        if step["step_id"] in ("function", "pathway"):
+            assert step["hypothesis"] is None
+
+
+def test_reasoning_chain_endpoint_wild_type_mismatch_suppresses_hypotheses() -> None:
+    """Task 5: R2H against UniProt sequence 'MEEPQSDPSV' (pos 2 = E) must
+    record the mismatch and suppress downstream impact hypotheses."""
+    _override_reasoning_chain_clients()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "R2H"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["chain"]
+    mutation_step = chain["steps"][0]
+    assert mutation_step["available"] is True
+    assert any(
+        "mismatch" in f.lower() or "does not match" in f.lower()
+        for f in mutation_step["evidence_facts"]
+    )
+    assert mutation_step["hypothesis"] is None
+    for step_id in ("function", "pathway"):
+        step = next(s for s in chain["steps"] if s["step_id"] == step_id)
+        assert step["hypothesis"] is None
+
+
+def test_reasoning_chain_endpoint_malformed_mutation_returns_explainable_chain() -> None:
+    """Task 5: a malformed mutation must not produce a traceback; it returns
+    a mutation_impact chain whose mutation step is unavailable."""
+    _override_reasoning_chain_clients()
+    try:
+        response = client.post(
+            "/api/v1/reasoning/chain",
+            json={"identifier": "TP53", "organism_id": 9606, "mutation": "NOTAMUTATION"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chain = response.json()["chain"]
+    assert chain["chain_type"] == "mutation_impact"
+    mutation_step = chain["steps"][0]
+    assert mutation_step["available"] is False
+    assert mutation_step["confidence"] == "insufficient"
+    assert any(
+        "invalid" in f.lower() or "malformed" in f.lower()
+        for f in mutation_step["evidence_facts"]
+    )
